@@ -1,0 +1,310 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-gray-900 text-white;
+    font-family: 'Space Mono', monospace;
+  }
+
+  .font-orbitron {
+    font-family: 'Orbitron', sans-serif;
+  }
+
+  .font-mono {
+    font-family: 'Space Mono', monospace;
+  }
+
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
+
+/* RainbowKit custom styles */
+.iekbcc0 {
+  --rk-colors-accentColor: #9600ef !important;
+  --rk-colors-accentColorForeground: white !important;
+}
+
+@layer utilities {
+
+  /* Utility umum dari project Anda */
+  .animate-pulse-slow {
+    animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  .bg-grid-pattern {
+    background-size: 50px 50px;
+    background-image:
+      linear-gradient(to right, rgba(255, 255, 255, 0.1) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255, 255, 255, 0.1) 1px, transparent 1px);
+  }
+
+  .progress-bar-grid {
+    background-image: repeating-linear-gradient(90deg,
+        rgba(0, 240, 255, 0.2) 0px,
+        rgba(0, 240, 255, 0.2) 2px,
+        transparent 2px,
+        transparent 12px);
+    background-size: 200% 100%;
+    animation: slideGrid 15s linear infinite;
+  }
+
+  .progress-bar-glow {
+    box-shadow:
+      0 0 10px rgba(0, 240, 255, 0.3),
+      0 0 20px rgba(0, 240, 255, 0.2),
+      inset 0 0 15px rgba(0, 240, 255, 0.3);
+  }
+
+  .progress-bar-shape {
+    clip-path: polygon(0% 0%,
+        calc(100% - 10px) 0%,
+        100% 10px,
+        100% 100%,
+        10px 100%,
+        0% calc(100% - 10px));
+  }
+
+  /* --- Styling dan Animasi untuk TerminalScanner --- */
+
+  /* Efek Pulse untuk Lingkaran Radar Utama */
+  .animate-radar-pulse {
+    animation: radarPulse 2s infinite ease-in-out;
+  }
+
+  /* Kontainer untuk Efek Ping/Blip Radar */
+  .radar-ping-container {
+    /* Tidak memerlukan style khusus di sini jika ping diatur via child */
+  }
+
+  /* Elemen Ping/Blip Radar */
+  .radar-ping {
+    position: absolute;
+    border-radius: 50%;
+    border: 1px solid theme('colors.green.400');
+    /* Warna border ping */
+    opacity: 0;
+    transform: scale(0);
+    animation: radarPingEffect 2.8s cubic-bezier(0.1, 0.7, 0.3, 1) infinite;
+    z-index: 1;
+    /* Di bawah sweep area dan dot statis */
+  }
+
+  .radar-ping-delay-1 {
+    animation-delay: 0.7s;
+  }
+
+  .radar-ping-delay-2 {
+    animation-delay: 1.3s;
+  }
+
+  /* Kontainer untuk Sweep Radar yang Ditingkatkan (Berputar) */
+  .radar-sweep-enhanced {
+    position: absolute;
+    inset: 0;
+    animation: radarSweepRotation 4s linear infinite;
+    /* Durasi rotasi sweep */
+    z-index: 2;
+    /* Di atas ping, di bawah dot statis */
+  }
+
+  /* Area Gradien Berwarna untuk Sweep Radar */
+  .radar-sweep-gradient-area {
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: conic-gradient(
+        /* Conic gradient dimulai dari atas (12 o'clock) secara default */
+        /* Kita ingin garis sweep di kanan (3 o'clock = 90deg dalam conic) */
+        /* Jadi gradien trail dimulai dari 90deg dan mengikuti searah jarum jam */
+        transparent 0deg,
+        transparent 89deg,
+        rgba(0, 229, 255, 0.25) 90deg,
+        /* Puncak gradien di 90deg (kanan) */
+        rgba(0, 229, 255, 0.02) 360deg,
+        transparent 360deg,
+        transparent 190deg);
+    transform-origin: center center;
+  }
+
+  /* Garis Visual Utama untuk Sweep Radar */
+  .radar-sweep-line-visual {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 50%;
+    height: 1px;
+    background: linear-gradient(to right, rgba(0, 229, 255, 0.2), theme('colors.cyan.400'));
+    transform-origin: left center;
+    transform: translateY(-50%);
+  }
+
+  /* Dot Radar Statis dengan Animasi Blink */
+  .radar-dot {
+    animation: radarDotBlinkOriginal 1.7s infinite ease-in-out;
+    /* Ganti nama animasi agar tidak konflik */
+    z-index: 3;
+    /* Di atas semua elemen sweep dan ping */
+  }
+
+  .radar-dot-alt {
+    animation: radarDotBlinkOriginal 2.2s infinite ease-in-out 0.4s;
+    /* Ganti nama animasi & delay agar blink tidak bersamaan */
+    z-index: 3;
+    /* Di atas semua elemen sweep dan ping */
+  }
+
+  /* Animasi untuk Bar Scanner di Kolom Kanan */
+  .animate-scanner-bar-v2 {
+    animation: scannerBarMovement 2.8s ease-in-out infinite;
+  }
+
+  /* Style untuk signal-scan-bar-container jika masih ada di JSX (opsional, bisa dihapus jika tidak) */
+  .signal-scan-bar-container {
+    animation: signalScanPulse 2.5s infinite ease-in-out;
+  }
+}
+
+
+/* === Keyframes Animasi === */
+
+/* Keyframes untuk Pulse Umum */
+@keyframes pulse {
+
+  0%,
+  100% {
+    opacity: 0.3;
+  }
+
+  50% {
+    opacity: 0.8;
+  }
+}
+
+/* Keyframes untuk Slide Grid (jika masih dipakai) */
+@keyframes slideGrid {
+  0% {
+    background-position: 0 0;
+  }
+
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* Keyframes untuk Pulse Lingkaran Radar Utama */
+@keyframes radarPulse {
+
+  0%,
+  100% {
+    opacity: 0.6;
+    transform: scale(0.95);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Keyframes untuk Rotasi Keseluruhan Elemen Sweep Radar */
+@keyframes radarSweepRotation {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Keyframes untuk Efek Ping/Blip Radar */
+@keyframes radarPingEffect {
+  0% {
+    transform: scale(0.05);
+    /* Mulai sangat kecil */
+    opacity: 0;
+  }
+
+  20% {
+    transform: scale(0.2);
+    /* Mulai terlihat */
+    opacity: 0.7;
+  }
+
+  70% {
+    transform: scale(1);
+    /* Ukuran maksimal ping (sesuai width/height di JSX) */
+    opacity: 0.2;
+    /* Mulai memudar */
+  }
+
+  100% {
+    transform: scale(1.1);
+    /* Sedikit membesar lagi saat hilang */
+    opacity: 0;
+  }
+}
+
+/* Keyframes untuk Blink Dot Radar Statis (nama diubah agar tidak konflik) */
+@keyframes radarDotBlinkOriginal {
+
+  0%,
+  100% {
+    opacity: 0.4;
+  }
+
+  /* Sedikit lebih subtle blinknya */
+  50% {
+    opacity: 1;
+  }
+}
+
+/* Keyframes untuk Gerakan Bar Scanner di Kolom Kanan */
+@keyframes scannerBarMovement {
+  0% {
+    transform: translateX(-100%) scaleY(0.8);
+    opacity: 0.7;
+  }
+
+  20% {
+    transform: translateX(0%) scaleY(1);
+    opacity: 1;
+  }
+
+  80% {
+    transform: translateX(400%) scaleY(1);
+    opacity: 1;
+  }
+
+  /* 400% karena width bar w-1/5 */
+  100% {
+    transform: translateX(500%) scaleY(0.8);
+    opacity: 0.7;
+  }
+}
+
+/* Keyframes untuk signalScanPulse (jika .signal-scan-bar-container masih dipakai) */
+@keyframes signalScanPulse {
+
+  0%,
+  100% {
+    box-shadow: 0 0 2px rgba(0, 255, 135, 0.2);
+  }
+
+  50% {
+    box-shadow: 0 0 6px rgba(0, 255, 135, 0.5);
+  }
+}
