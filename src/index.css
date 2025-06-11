@@ -176,6 +176,107 @@
     animation: signalScanPulse 2.5s infinite ease-in-out;
   }
 
+  /* === ENHANCED CHEVRON TRAIL ANIMATIONS === */
+
+  /* Chevron Glow Animation - Sequential lighting effect */
+  .animate-chevron-glow {
+    animation: chevronGlow 1.8s ease-in-out infinite;
+  }
+
+  /* Chevron Pulse Animation - Radial glow effect */
+  .animate-chevron-pulse {
+    animation: chevronPulse 1.8s ease-in-out infinite;
+  }
+
+  /* Chevron Burst Animation - Explosive effect for button click */
+  .animate-chevron-burst {
+    animation: chevronBurst 0.6s ease-out forwards;
+  }
+
+  /* Chevron Element Styling */
+  .chevron-element {
+    filter: drop-shadow(0 0 4px currentColor);
+    transition: all 0.3s ease;
+  }
+
+  .chevron-element:hover {
+    filter: drop-shadow(0 0 8px currentColor);
+    transform: scale(1.1);
+  }
+
+  /* === IMMERSIVE HOLOGRAPHIC UI ELEMENTS === */
+
+  /* Holographic Container */
+  .holographic-container {
+    position: relative;
+    background: linear-gradient(135deg, rgba(0, 229, 255, 0.05) 0%, rgba(147, 51, 234, 0.05) 100%);
+    backdrop-filter: blur(20px);
+    box-shadow:
+      0 0 30px rgba(0, 229, 255, 0.1),
+      inset 0 0 30px rgba(147, 51, 234, 0.05);
+  }
+
+  /* Neon Frame Effects */
+  .neon-frame {
+    box-shadow:
+      0 0 10px rgba(147, 51, 234, 0.3),
+      inset 0 0 10px rgba(147, 51, 234, 0.1);
+  }
+
+  .neon-frame-enhanced {
+    box-shadow:
+      0 0 15px rgba(0, 229, 255, 0.4),
+      0 0 30px rgba(0, 229, 255, 0.2),
+      inset 0 0 15px rgba(0, 229, 255, 0.1);
+  }
+
+  /* Motion Grid Background */
+  .motion-grid-lines {
+    background-image:
+      linear-gradient(rgba(0, 229, 255, 0.1) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0, 229, 255, 0.1) 1px, transparent 1px);
+    background-size: 60px 60px;
+    animation: motionGridMove 20s linear infinite;
+  }
+
+  /* Holographic Grid Background */
+  .bg-holographic-grid {
+    background-image:
+      linear-gradient(rgba(147, 51, 234, 0.15) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(147, 51, 234, 0.15) 1px, transparent 1px),
+      radial-gradient(circle at 25% 25%, rgba(0, 229, 255, 0.1) 0%, transparent 50%),
+      radial-gradient(circle at 75% 75%, rgba(57, 255, 20, 0.1) 0%, transparent 50%);
+    background-size: 40px 40px, 40px 40px, 200px 200px, 200px 200px;
+    animation: holographicGridPulse 8s ease-in-out infinite;
+  }
+
+  /* Parallax Animations */
+  .animate-parallax-slow {
+    animation: parallaxFloat 15s ease-in-out infinite;
+  }
+
+  .animate-parallax-medium {
+    animation: parallaxFloat 12s ease-in-out infinite reverse;
+  }
+
+  .animate-parallax-fast {
+    animation: parallaxFloat 8s ease-in-out infinite;
+  }
+
+  /* Floating Particles */
+  .animate-float-particle {
+    animation: floatParticle 6s ease-in-out infinite;
+  }
+
+  /* Scanning Lines */
+  .animate-scan-line-horizontal {
+    animation: scanLineHorizontal 4s linear infinite;
+  }
+
+  .animate-scan-line-vertical {
+    animation: scanLineVertical 6s linear infinite;
+  }
+
   /* Rank-Up Cinematic Animations */
   .rank-up-glow {
     box-shadow:
@@ -322,6 +423,201 @@
 
   50% {
     box-shadow: 0 0 6px rgba(0, 255, 135, 0.5);
+  }
+}
+
+/* === ENHANCED CHEVRON TRAIL KEYFRAMES === */
+
+/* Sequential Chevron Glow - Creates the "chasing lights" effect */
+@keyframes chevronGlow {
+  0% {
+    opacity: 0.3;
+    filter: drop-shadow(0 0 2px currentColor);
+    transform: scale(0.9);
+  }
+
+  25% {
+    opacity: 1;
+    filter: drop-shadow(0 0 12px currentColor) drop-shadow(0 0 20px rgba(0, 229, 255, 0.6));
+    transform: scale(1.1);
+  }
+
+  50% {
+    opacity: 0.8;
+    filter: drop-shadow(0 0 8px currentColor);
+    transform: scale(1);
+  }
+
+  100% {
+    opacity: 0.3;
+    filter: drop-shadow(0 0 2px currentColor);
+    transform: scale(0.9);
+  }
+}
+
+/* Radial Pulse for Glow Effect */
+@keyframes chevronPulse {
+  0% {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+
+  25% {
+    opacity: 0.6;
+    transform: scale(1.2);
+  }
+
+  50% {
+    opacity: 0.3;
+    transform: scale(1.5);
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(2);
+  }
+}
+
+/* Burst Effect for Button Click */
+@keyframes chevronBurst {
+  0% {
+    opacity: 1;
+    filter: drop-shadow(0 0 4px currentColor);
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 1;
+    filter: drop-shadow(0 0 20px currentColor) drop-shadow(0 0 40px rgba(0, 229, 255, 0.8));
+    transform: scale(1.3);
+  }
+
+  100% {
+    opacity: 0.7;
+    filter: drop-shadow(0 0 8px currentColor);
+    transform: scale(1.1);
+  }
+}
+
+/* === IMMERSIVE HOLOGRAPHIC UI KEYFRAMES === */
+
+/* Motion Grid Movement */
+@keyframes motionGridMove {
+  0% {
+    transform: translate(0, 0);
+  }
+
+  100% {
+    transform: translate(60px, 60px);
+  }
+}
+
+/* Holographic Grid Pulse */
+@keyframes holographicGridPulse {
+
+  0%,
+  100% {
+    opacity: 0.15;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.25;
+    transform: scale(1.02);
+  }
+}
+
+/* Parallax Float Animation */
+@keyframes parallaxFloat {
+
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+    opacity: 0.15;
+  }
+
+  25% {
+    transform: translate(20px, -30px) scale(1.1);
+    opacity: 0.25;
+  }
+
+  50% {
+    transform: translate(-10px, -50px) scale(0.9);
+    opacity: 0.2;
+  }
+
+  75% {
+    transform: translate(-30px, -20px) scale(1.05);
+    opacity: 0.18;
+  }
+}
+
+/* Floating Particle Animation */
+@keyframes floatParticle {
+  0% {
+    transform: translateY(0) rotate(0deg);
+    opacity: 0.4;
+  }
+
+  25% {
+    transform: translateY(-20px) rotate(90deg);
+    opacity: 0.8;
+  }
+
+  50% {
+    transform: translateY(-40px) rotate(180deg);
+    opacity: 0.6;
+  }
+
+  75% {
+    transform: translateY(-20px) rotate(270deg);
+    opacity: 0.8;
+  }
+
+  100% {
+    transform: translateY(0) rotate(360deg);
+    opacity: 0.4;
+  }
+}
+
+/* Scanning Line Animations */
+@keyframes scanLineHorizontal {
+  0% {
+    transform: translateY(-100vh);
+    opacity: 0;
+  }
+
+  10% {
+    opacity: 1;
+  }
+
+  90% {
+    opacity: 1;
+  }
+
+  100% {
+    transform: translateY(100vh);
+    opacity: 0;
+  }
+}
+
+@keyframes scanLineVertical {
+  0% {
+    transform: translateX(-100vw);
+    opacity: 0;
+  }
+
+  10% {
+    opacity: 1;
+  }
+
+  90% {
+    opacity: 1;
+  }
+
+  100% {
+    transform: translateX(100vw);
+    opacity: 0;
   }
 }
 
