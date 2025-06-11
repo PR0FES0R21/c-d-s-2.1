@@ -292,6 +292,18 @@
   .rank-up-scan {
     animation: rankUpScan 1.5s ease-in-out;
   }
+
+  /* === PORTFOLIO LOCK OVERLAY ANIMATIONS === */
+
+  /* Wave Animation for Lock Message */
+  .animate-wave {
+    animation: waveText 3s ease-in-out infinite;
+  }
+
+  /* Glitch Text Animation */
+  .animate-glitch-text {
+    animation: glitchText 4s ease-in-out infinite;
+  }
 }
 
 
@@ -641,5 +653,68 @@
 
   100% {
     transform: translateX(100%);
+  }
+}
+
+/* === PORTFOLIO LOCK OVERLAY KEYFRAMES === */
+
+/* Wave Text Animation - Gentle floating effect */
+@keyframes waveText {
+
+  0%,
+  100% {
+    transform: translateY(0px);
+    opacity: 1;
+  }
+
+  25% {
+    transform: translateY(-2px);
+    opacity: 0.9;
+  }
+
+  50% {
+    transform: translateY(0px);
+    opacity: 1;
+  }
+
+  75% {
+    transform: translateY(2px);
+    opacity: 0.9;
+  }
+}
+
+/* Glitch Text Animation - Subtle glitch effect */
+@keyframes glitchText {
+
+  0%,
+  90%,
+  100% {
+    transform: translate(0);
+    filter: hue-rotate(0deg);
+  }
+
+  2% {
+    transform: translate(1px, 0);
+    filter: hue-rotate(90deg);
+  }
+
+  4% {
+    transform: translate(-1px, 0);
+    filter: hue-rotate(180deg);
+  }
+
+  6% {
+    transform: translate(0);
+    filter: hue-rotate(270deg);
+  }
+
+  8% {
+    transform: translate(1px, 0);
+    filter: hue-rotate(360deg);
+  }
+
+  10% {
+    transform: translate(0);
+    filter: hue-rotate(0deg);
   }
 }
