@@ -19,7 +19,7 @@ const MissionProgress: React.FC = () => {
       const data = await getMissionDirectives();
       setDirectives(data || []);
     } catch (error: any) {
-      const errorMessage = error.response?.data?.detail || error.message || "Gagal memuat data misi.";
+      const errorMessage = error.response?.data?.detail || error.message || "Failed to load mission data.";
       setErrorDirectives(errorMessage);
       console.error("Error fetching mission directives:", error);
     } finally {

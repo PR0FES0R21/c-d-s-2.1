@@ -20,7 +20,7 @@ const WalletButton: React.FC = () => {
       >
         <Loader2 size={18} className="text-cyan-400 animate-spin mr-2" />
         <span className="font-orbitron tracking-wide text-sm text-white">
-          Memproses...
+          Processing...
         </span>
       </button>
     );

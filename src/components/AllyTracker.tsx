@@ -30,7 +30,7 @@ const AllyTracker: React.FC = () => {
       const data = await getMyAllies(page, alliesPerPage);
       setAlliesData(data);
     } catch (err: any) {
-      const errorMessage = err.response?.data?.detail || err.message || "Gagal memuat daftar sekutu.";
+      const errorMessage = err.response?.data?.detail || err.message || "Failed to load allies list.";
       setErrorAllies(errorMessage);
       console.error("Error fetching allies list:", err);
     } finally {
@@ -124,7 +124,7 @@ const AllyTracker: React.FC = () => {
                   onClick={() => fetchAllies(currentPage)} 
                   className="mt-2 text-xs px-3 py-1 bg-purple-500/20 rounded-md hover:bg-purple-500/30"
                 >
-                  Coba Lagi
+                  Try Again
                 </button>
               </div>
             )}

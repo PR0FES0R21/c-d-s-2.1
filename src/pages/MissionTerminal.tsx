@@ -38,6 +38,7 @@ const MissionTerminal: React.FC = () => {
     totalMissions: 0,
     activeSignals: 0,
   });
+  console.log(directives)
 
   const [isLoadingData, setIsLoadingData] = useState<boolean>(false);
   const [errorData, setErrorData] = useState<string | null>(null);
@@ -85,7 +86,7 @@ const MissionTerminal: React.FC = () => {
       setUserBadges(badgesData || []);
       setMissionSummary(summaryData || { completedMissions: 0, totalMissions: 0, activeSignals: 0 });
     } catch (error: any) {
-      const errorMessage = error.response?.data?.detail || error.message || "Gagal memuat data terminal misi.";
+      const errorMessage = error.response?.data?.detail || error.message || "Failed to load mission terminal data";
       setErrorData(errorMessage);
       // Tidak menampilkan toast error di sini lagi, karena mungkin sudah ditangani oleh toast dari callback
       console.error("Error fetching mission terminal data:", error);
@@ -141,7 +142,7 @@ const MissionTerminal: React.FC = () => {
     } else if (mission.action.type === "oauth_connect") {
         if (mission.missionId_str === "connect-x-account") {
             if (user?.twitter_data) {
-                toast.success("Akun X sudah terhubung!", {id: `mission-${mission.id}`});
+                toast.success("X account already connected!", {id: `mission-${mission.id}`});
                 // Mungkin refresh data untuk memastikan status misi 'completed'
                 await fetchData();
                 if(fetchUserProfile) await fetchUserProfile();
@@ -155,9 +156,9 @@ const MissionTerminal: React.FC = () => {
       setCompletingMissionId(mission.id);
       const toastId = `mission-${mission.id}`;
       try {
-        toast.loading(`Memproses misi: ${mission.title}...`, { id: toastId });
+        toast.loading(`Processing mission: ${mission.title}...`, { id: toastId });
         const result = await completeMissionDirective(mission.missionId_str); 
-        toast.success(result.message || `Misi '${mission.title}' berhasil diproses!`, { id: toastId });
+        toast.success(result.message || `Mission '${mission.title}' completed successfully!`, { id: toastId });
         
         await fetchData(); 
         if(fetchUserProfile) await fetchUserProfile();

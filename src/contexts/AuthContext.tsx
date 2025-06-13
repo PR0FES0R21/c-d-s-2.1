@@ -117,7 +117,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const connectWallet = async () => {
     if (!isConnected || !address) {
-      toast.error("Silakan hubungkan dompet Anda terlebih dahulu menggunakan tombol Connect Wallet.");
+      toast.error("Please connect your wallet first");
       return;
     }
 
@@ -127,7 +127,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     try {
       const walletAddress = address;
 
-      toast.loading("Meminta challenge dari server...", { id: "auth-process" });
+      toast.loading("Requesting challenge from server...", { id: "auth-process" });
       const challengeResponse = await apiClient.get(`/auth/challenge`, { params: { walletAddress } });
       const { messageToSign, nonce } = challengeResponse.data;
       
@@ -137,7 +137,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         return;
       }
 
-      toast.loading("Silakan tandatangani pesan di dompet Anda...", { id: "auth-process" });
+      toast.loading("Please sign the message in your wallet...", { id: "auth-process" });
       
       const signature = await signMessageAsync({
         message: messageToSign,
@@ -151,7 +151,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       
       const pendingReferralCode = localStorage.getItem(PENDING_REFERRAL_CODE_KEY);
 
-      toast.loading("Memverifikasi signature...", { id: "auth-process" });
+      toast.loading("Verifying signature...", { id: "auth-process" });
       const connectPayload: any = {
         walletAddress,
         message: messageToSign,
@@ -175,7 +175,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         localStorage.setItem('cigar_ds_token', access_token);
         localStorage.setItem('cigar_ds_user', JSON.stringify(userData));
         apiClient.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
-        toast.success(`Selamat datang, ${userData.username}!`, { id: "auth-process" });
+        toast.success(`Welcome, ${userData.username}!`, { id: "auth-process" });
 
         if (pendingReferralCode) {
           localStorage.removeItem(PENDING_REFERRAL_CODE_KEY);
@@ -211,13 +211,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     // Disconnect wallet as well
     disconnect();
     
-    toast.success("Anda telah logout.");
+    toast.success("You have been logged out");
     setIsLoading(false);
   };
 
   const initiateTwitterConnect = async () => {
     if (!isAuthenticated || !token) {
-      toast.error("Anda harus login terlebih dahulu untuk menghubungkan akun X.");
+      toast.error("You must login first");
       return;
     }
     setIsLoading(true); 

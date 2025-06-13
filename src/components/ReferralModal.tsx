@@ -15,15 +15,15 @@ const ReferralModal: React.FC<ReferralModalProps> = ({ isOpen, onClose }) => {
   const { user } = useAuth(); // Ambil data user dari context
 
   const referralCode = user?.referralCode || "LOGIN_UNTUK_KODE"; // Fallback jika user belum ada
-  const referralLink = user?.referralCode ? `${window.location.origin}/?ref=${user.referralCode}` : "Login untuk mendapatkan link referral";
+  const referralLink = user?.referralCode ? `${window.location.origin}/?ref=${user.referralCode}` : "Login to get your referral link";
 
   const copyToClipboard = () => {
     if (!user || !user.referralCode) {
-      toast.error("Anda belum memiliki kode referral. Silakan login.");
+      toast.error("You don't have a referral code yet");
       return;
     }
     navigator.clipboard.writeText(referralLink);
-    toast.success('Link referral disalin ke clipboard!', {
+    toast.success('Referral link copied to clipboard!', {
       // Style toast bisa di-set global di App.tsx
     });
   };
@@ -57,7 +57,7 @@ const ReferralModal: React.FC<ReferralModalProps> = ({ isOpen, onClose }) => {
           
           <p className="text-sm font-mono text-gray-400 mb-6">
             Expand the network. Share your unique quantum signature.
-            {!user && " (Login untuk mendapatkan kode referral Anda)"}
+            {!user && " (Login to get your referral code)"}
           </p>
 
           <div className="bg-gray-800/50 rounded-lg p-4 border border-purple-900/30">
