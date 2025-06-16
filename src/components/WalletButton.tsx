@@ -1,15 +1,15 @@
 // ===========================================================================
-// File: src/components/WalletButton.tsx (MODIFIKASI - Gunakan RainbowKit)
-// Deskripsi: Mengintegrasikan WalletButton dengan RainbowKit dan AuthContext.
+// File: src/components/WalletButton.tsx (MODIFIKASI - Auto Sign-in tanpa tombol)
+// Deskripsi: Mengintegrasikan WalletButton dengan RainbowKit dan AuthContext dengan auto sign-in.
 // ===========================================================================
 import React from 'react';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { useAccount } from 'wagmi';
-import { LogOut, Loader2, Zap } from 'lucide-react';
+import { LogOut, Loader2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 const WalletButton: React.FC = () => {
-  const { isAuthenticated, user, isLoading, connectWallet, logout } = useAuth();
+  const { isAuthenticated, user, isLoading, logout } = useAuth();
   const { isConnected } = useAccount();
 
   if (isLoading) {
@@ -38,8 +38,6 @@ const WalletButton: React.FC = () => {
           authenticationStatus,
           mounted,
         }) => {
-          // Note: If your app doesn't use authentication, you
-          // can remove all 'authenticationStatus' checks
           const ready = mounted && authenticationStatus !== 'loading';
           const connected =
             ready &&
@@ -103,13 +101,10 @@ const WalletButton: React.FC = () => {
                           ? ` (${account.displayBalance})`
                           : ''}
                       </button>
-                      <button
-                        onClick={connectWallet}
-                        className="relative overflow-hidden group flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-500/20 to-cyan-500/20 border border-purple-500/30 rounded-lg font-orbitron text-sm text-white hover:from-purple-500/30 hover:to-cyan-500/30 transition-all duration-300"
-                      >
-                        <Zap size={16} className="text-cyan-400" />
-                        <span>Sign In</span>
-                      </button>
+                      <div className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-yellow-500/20 to-orange-500/20 border border-yellow-500/30 rounded-lg">
+                        <Loader2 size={16} className="text-yellow-400 animate-spin" />
+                        <span className="font-orbitron text-sm text-white">Authenticating...</span>
+                      </div>
                     </div>
                   );
                 }

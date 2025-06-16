@@ -1,10 +1,11 @@
 // ===========================================================================
-// File: src/pages/MissionTerminal.tsx (ENHANCED - Complete Action Integration)
-// Deskripsi: Menangani semua jenis action.type dari mission data dengan logika yang tepat
+// File: src/pages/MissionTerminal.tsx (ENHANCED - Complete Action Integration with Cooldown)
+// Deskripsi: Menangani semua jenis action.type dari mission data dengan logika cooldown untuk like/retweet
 // ===========================================================================
 import React, { useState, useEffect } from 'react';
-import { Trophy, Zap, Target, Award, Sparkles, CheckCircle, ExternalLink, Hourglass, XCircle, Loader2, AlertTriangle, Twitter, Filter, Users, Eye, RefreshCw } from 'lucide-react';
+import { Trophy, Zap, Target, Award, Sparkles, CheckCircle, ExternalLink, Hourglass, XCircle, Loader2, AlertTriangle, Twitter, Filter, Users, Eye, RefreshCw, Clock } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { useMissionCooldown } from '../hooks/useMissionCooldown';
 import { 
     getMissionDirectives, 
     getMyBadges, 
@@ -33,6 +34,13 @@ interface RedirectVerifyState {
 
 const MissionTerminal: React.FC = () => {
   const { isAuthenticated, user, isLoading: authLoading, fetchUserProfile, initiateTwitterConnect } = useAuth();
+  const { 
+    cooldownData, 
+    startCooldown, 
+    isMissionOnCooldown, 
+    getMissionCooldownInfo, 
+    getMissionType 
+  } = useMissionCooldown();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -145,6 +153,11 @@ const MissionTerminal: React.FC = () => {
     const userAlliesCount = user?.alliesCount || 0;
     const isTwitterConnected = !!user?.twitter_data?.twitter_username;
     const redirectState = redirectVerifyStates[mission._id] || 'initial';
+    
+    // Check cooldown untuk like/retweet missions
+    const missionType = getMissionType(missionId_str);
+    const cooldownInfo = getMissionCooldownInfo(missionId_str);
+    const isOnCooldown = isMissionOnCooldown(missionId_str);
 
     switch (action.type) {
       case 'oauth_connect':
@@ -207,6 +220,17 @@ const MissionTerminal: React.FC = () => {
           };
         }
         
+        // Check cooldown untuk like/retweet missions
+        if (isOnCooldown && cooldownInfo) {
+          return {
+            label: `Wait ${cooldownInfo.formattedTime}`,
+            icon: Clock,
+            disabled: true,
+            variant: 'cooldown',
+            cooldownInfo
+          };
+        }
+        
         if (redirectState === 'initial') {
           return {
             label: action.label,
@@ -240,6 +264,18 @@ const MissionTerminal: React.FC = () => {
             variant: 'completed'
           };
         }
+        
+        // Check cooldown untuk missions lainnya juga
+        if (isOnCooldown && cooldownInfo) {
+          return {
+            label: `Wait ${cooldownInfo.formattedTime}`,
+            icon: Clock,
+            disabled: true,
+            variant: 'cooldown',
+            cooldownInfo
+          };
+        }
+        
         return {
           label: action.label,
           icon: Zap,
@@ -259,6 +295,7 @@ const MissionTerminal: React.FC = () => {
   const handleMissionAction = async (mission: MissionDirective) => {
     const { action, missionId_str } = mission;
     const redirectState = redirectVerifyStates[mission._id] || 'initial';
+    const missionType = getMissionType(missionId_str);
 
     if (action.type === "oauth_connect") {
       if (missionId_str === "connect-x-account") {
@@ -340,6 +377,12 @@ const MissionTerminal: React.FC = () => {
           const result = await completeMissionDirective(missionId_str);
           toast.success(result.message || `Mission completed successfully!`, { id: toastId });
           
+          // Start cooldown untuk like/retweet missions
+          if (missionType) {
+            startCooldown(missionType);
+            console.log(`Started ${missionType} cooldown for mission: ${missionId_str}`);
+          }
+          
           // Reset state on success
           setRedirectVerifyStates(prev => ({
             ...prev,
@@ -368,6 +411,12 @@ const MissionTerminal: React.FC = () => {
         toast.loading(`Processing mission: ${mission.title}...`, { id: toastId });
         const result = await completeMissionDirective(missionId_str);
         toast.success(result.message || `Mission '${mission.title}' completed successfully!`, { id: toastId });
+        
+        // Start cooldown untuk like/retweet missions
+        if (missionType) {
+          startCooldown(missionType);
+          console.log(`Started ${missionType} cooldown for mission: ${missionId_str}`);
+        }
         
         await fetchData();
         if(fetchUserProfile) await fetchUserProfile();
@@ -412,6 +461,8 @@ const MissionTerminal: React.FC = () => {
         return 'bg-gradient-to-r from-yellow-500/20 to-orange-500/20 border border-yellow-500/30 text-white hover:from-yellow-500/30 hover:to-orange-500/30';
       case 'loading':
         return 'bg-gray-700/50 text-gray-400 cursor-wait';
+      case 'cooldown':
+        return 'bg-gradient-to-r from-red-500/20 to-orange-500/20 border border-red-500/30 text-red-300 cursor-not-allowed';
       case 'action':
       default:
         return 'bg-gradient-to-r from-purple-500/20 to-cyan-500/20 border border-purple-500/30 text-white hover:from-purple-500/30 hover:to-cyan-500/30';
@@ -509,6 +560,27 @@ const MissionTerminal: React.FC = () => {
                   <div className="mt-1 text-xs font-mono text-gray-500">STABILITY</div>
                 </div>
               </div>
+
+              {/* Cooldown Status Display */}
+              {(cooldownData.like.isOnCooldown || cooldownData.retweet.isOnCooldown) && (
+                <div className="bg-red-900/20 border border-red-500/30 rounded-lg p-3">
+                  <div className="text-xs font-mono text-red-400 mb-2">MISSION COOLDOWNS</div>
+                  <div className="grid grid-cols-2 gap-2 text-xs font-mono">
+                    {cooldownData.like.isOnCooldown && (
+                      <div className="flex items-center gap-2">
+                        <Clock size={12} className="text-red-400" />
+                        <span className="text-red-300">Like: {cooldownData.like.formattedTime}</span>
+                      </div>
+                    )}
+                    {cooldownData.retweet.isOnCooldown && (
+                      <div className="flex items-center gap-2">
+                        <Clock size={12} className="text-red-400" />
+                        <span className="text-red-300">Retweet: {cooldownData.retweet.formattedTime}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="mt-auto pt-4">

@@ -1,6 +1,6 @@
 // ===========================================================================
-// File: src/types/user.ts (MODIFIKASI: Tambahkan UserTwitterData ke UserPublic)
-// Deskripsi: Definisi tipe untuk data pengguna, misi, dan badge.
+// File: src/types/user.ts (MODIFIKASI: Update MissionAction type)
+// Deskripsi: Definisi tipe untuk data pengguna, misi, dan badge dengan update action types.
 // ===========================================================================
 export interface UserProfile {
   commanderName: string;
@@ -68,15 +68,15 @@ export interface UserBadge {
 
 export interface MissionAction {
   label: string;
-  type: "external_link" | "api_call" | "disabled" | "completed" | "oauth_connect"; // Tambahkan oauth_connect
+  type: "external_link" | "api_call" | "disabled" | "completed" | "oauth_connect" | "claim_if_eligible" | "redirect_and_verify";
   url?: string;
 }
 
 export type MissionStatus = "available" | "in_progress" | "completed" | "pending_verification" | "failed";
 export type MissionType = "connect" | "interact" | "contribute" | "special";
 
-
 export interface MissionDirective {
+  _id: string;
   id: string;
   missionId_str: string;
   title: string;
@@ -92,6 +92,8 @@ export interface MissionDirective {
   action: MissionAction;
   prerequisites?: string[];
   order?: number;
+  currentProgress?: number;
+  requiredProgress?: number;
 }
 
 export interface MissionProgressSummary {

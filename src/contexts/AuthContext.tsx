@@ -1,6 +1,6 @@
 // ===========================================================================
-// File: src/context/AuthContext.tsx (MODIFIKASI - Gunakan Wagmi hooks)
-// Deskripsi: React Context untuk manajemen state autentikasi dan data pengguna dengan RainbowKit/Wagmi.
+// File: src/context/AuthContext.tsx (MODIFIKASI - Auto Sign-in dan Clear Storage)
+// Deskripsi: React Context untuk manajemen state autentikasi dengan auto sign-in dan cleanup storage.
 // ===========================================================================
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useAccount, useSignMessage, useDisconnect } from 'wagmi';
@@ -14,7 +14,6 @@ interface AuthContextType {
   token: string | null;
   isLoading: boolean;
   isFetchingProfile: boolean;
-  connectWallet: () => Promise<void>;
   logout: () => void;
   fetchUserProfile: () => Promise<void>;
   initiateTwitterConnect: () => Promise<void>;
@@ -24,12 +23,22 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const PENDING_REFERRAL_CODE_KEY = 'pending_referral_code';
 
+// Fungsi untuk membersihkan semua localStorage kecuali referral code
+const clearAuthStorage = () => {
+  const pendingReferralCode = localStorage.getItem(PENDING_REFERRAL_CODE_KEY);
+  localStorage.clear();
+  if (pendingReferralCode) {
+    localStorage.setItem(PENDING_REFERRAL_CODE_KEY, pendingReferralCode);
+  }
+};
+
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [user, setUser] = useState<UserPublic | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isFetchingProfile, setIsFetchingProfile] = useState<boolean>(false);
+  const [hasTriedAutoAuth, setHasTriedAutoAuth] = useState<boolean>(false);
 
   const { address, isConnected } = useAccount();
   const { signMessageAsync } = useSignMessage();
@@ -40,8 +49,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     if (!tokenToUse) {
       setUser(null);
       setIsAuthenticated(false);
-      localStorage.removeItem('cigar_ds_user');
-      localStorage.removeItem('cigar_ds_token');
+      clearAuthStorage();
       delete apiClient.defaults.headers.common['Authorization'];
       return;
     }
@@ -66,12 +74,89 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setToken(null);
         setUser(null);
         setIsAuthenticated(false);
-        localStorage.removeItem('cigar_ds_token');
-        localStorage.removeItem('cigar_ds_user');
+        clearAuthStorage();
         delete apiClient.defaults.headers.common['Authorization'];
       }
     } finally {
       setIsFetchingProfile(false);
+    }
+  };
+
+  // Auto authentication ketika wallet connect
+  const performAutoAuth = async () => {
+    if (!isConnected || !address || hasTriedAutoAuth || isAuthenticated) {
+      return;
+    }
+
+    setHasTriedAutoAuth(true);
+    setIsLoading(true);
+
+    try {
+      const walletAddress = address;
+
+      console.log("Auto authentication: Requesting challenge...");
+      const challengeResponse = await apiClient.get(`/auth/challenge`, { params: { walletAddress } });
+      const { messageToSign, nonce } = challengeResponse.data;
+      
+      if (!messageToSign || !nonce) {
+        console.error("Auto authentication: Failed to get challenge");
+        setIsLoading(false);
+        return;
+      }
+
+      console.log("Auto authentication: Requesting signature...");
+      const signature = await signMessageAsync({
+        message: messageToSign,
+      });
+
+      if (!signature) {
+        console.error("Auto authentication: Failed to sign message");
+        setIsLoading(false);
+        return;
+      }
+      
+      const pendingReferralCode = localStorage.getItem(PENDING_REFERRAL_CODE_KEY);
+
+      console.log("Auto authentication: Verifying signature...");
+      const connectPayload: any = {
+        walletAddress,
+        message: messageToSign,
+        signature,
+        nonce,
+      };
+
+      if (pendingReferralCode) {
+        connectPayload.referral_code_input = pendingReferralCode;
+        console.log("Auto authentication: Using referral code:", pendingReferralCode);
+      }
+      
+      const connectResponse = await apiClient.post('/auth/connect', connectPayload);
+
+      const { access_token, user: userData } = connectResponse.data;
+
+      if (access_token && userData) {
+        setToken(access_token);
+        setUser(userData);
+        setIsAuthenticated(true);
+        localStorage.setItem('cigar_ds_token', access_token);
+        localStorage.setItem('cigar_ds_user', JSON.stringify(userData));
+        apiClient.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
+        toast.success(`Welcome back, ${userData.username}!`);
+
+        if (pendingReferralCode) {
+          localStorage.removeItem(PENDING_REFERRAL_CODE_KEY);
+          console.log("Auto authentication: Referral code used and removed.");
+        }
+      } else {
+        console.error("Auto authentication: Incomplete data from server");
+      }
+
+    } catch (error: any) {
+      console.error("Auto authentication failed:", error);
+      // Tidak menampilkan toast error untuk auto auth yang gagal
+      // User bisa manual connect jika diperlukan
+    } finally {
+      setIsLoading(false);
     }
   };
   
@@ -106,106 +191,32 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Handle wallet disconnection
+  // Handle wallet connection/disconnection
   useEffect(() => {
-    if (!isConnected && isAuthenticated) {
-      // Wallet was disconnected, but user is still authenticated
-      // You might want to keep the session or logout automatically
-      console.log("Wallet disconnected but user still authenticated");
+    if (!isConnected) {
+      // Wallet disconnected - clear everything
+      if (isAuthenticated || user || token) {
+        console.log("Wallet disconnected - clearing auth storage");
+        setToken(null);
+        setUser(null);
+        setIsAuthenticated(false);
+        setHasTriedAutoAuth(false);
+        clearAuthStorage();
+        delete apiClient.defaults.headers.common['Authorization'];
+      }
+    } else if (isConnected && !isAuthenticated && !hasTriedAutoAuth) {
+      // Wallet connected but not authenticated - try auto auth
+      performAutoAuth();
     }
-  }, [isConnected, isAuthenticated]);
-
-  const connectWallet = async () => {
-    if (!isConnected || !address) {
-      toast.error("Please connect your wallet first");
-      return;
-    }
-
-    setIsLoading(true);
-    setIsFetchingProfile(false);
-
-    try {
-      const walletAddress = address;
-
-      toast.loading("Requesting challenge from server...", { id: "auth-process" });
-      const challengeResponse = await apiClient.get(`/auth/challenge`, { params: { walletAddress } });
-      const { messageToSign, nonce } = challengeResponse.data;
-      
-      if (!messageToSign || !nonce) {
-        toast.error("Gagal mendapatkan challenge message dari server.", { id: "auth-process" });
-        setIsLoading(false);
-        return;
-      }
-
-      toast.loading("Please sign the message in your wallet...", { id: "auth-process" });
-      
-      const signature = await signMessageAsync({
-        message: messageToSign,
-      });
-
-      if (!signature) {
-        toast.error("Gagal menandatangani pesan.", { id: "auth-process" });
-        setIsLoading(false);
-        return;
-      }
-      
-      const pendingReferralCode = localStorage.getItem(PENDING_REFERRAL_CODE_KEY);
-
-      toast.loading("Verifying signature...", { id: "auth-process" });
-      const connectPayload: any = {
-        walletAddress,
-        message: messageToSign,
-        signature,
-        nonce,
-      };
-
-      if (pendingReferralCode) {
-        connectPayload.referral_code_input = pendingReferralCode;
-        console.log("Mengirim dengan kode referral:", pendingReferralCode);
-      }
-      
-      const connectResponse = await apiClient.post('/auth/connect', connectPayload);
-
-      const { access_token, user: userData } = connectResponse.data;
-
-      if (access_token && userData) {
-        setToken(access_token);
-        setUser(userData);
-        setIsAuthenticated(true);
-        localStorage.setItem('cigar_ds_token', access_token);
-        localStorage.setItem('cigar_ds_user', JSON.stringify(userData));
-        apiClient.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
-        toast.success(`Welcome, ${userData.username}!`, { id: "auth-process" });
-
-        if (pendingReferralCode) {
-          localStorage.removeItem(PENDING_REFERRAL_CODE_KEY);
-          console.log("Kode referral yang tertunda telah digunakan dan dihapus.");
-        }
-      } else {
-        toast.error("Login gagal. Data tidak lengkap dari server.", { id: "auth-process" });
-      }
-
-    } catch (error: any) {
-      console.error("Error connecting wallet:", error);
-      const errorMessage = error.response?.data?.detail || error.message || "Terjadi kesalahan saat menghubungkan dompet.";
-      let displayErrorMessage = errorMessage;
-      if (Array.isArray(errorMessage)) {
-        displayErrorMessage = errorMessage.map((err: any) => `${err.loc?.join('->') || 'error'}: ${err.msg}`).join('; ');
-      }
-      toast.error(displayErrorMessage, { id: "auth-process" });
-    } finally {
-      setIsLoading(false);
-      toast.dismiss("auth-process");
-    }
-  };
+  }, [isConnected, isAuthenticated, hasTriedAutoAuth, user, token]);
 
   const logout = () => {
     setIsLoading(true);
     setToken(null);
     setUser(null);
     setIsAuthenticated(false);
-    localStorage.removeItem('cigar_ds_token');
-    localStorage.removeItem('cigar_ds_user');
+    setHasTriedAutoAuth(false);
+    clearAuthStorage();
     delete apiClient.defaults.headers.common['Authorization'];
     
     // Disconnect wallet as well
@@ -253,7 +264,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       token, 
       isLoading, 
       isFetchingProfile, 
-      connectWallet, 
       logout, 
       fetchUserProfile, 
       initiateTwitterConnect 
