@@ -1,9 +1,9 @@
 // ===========================================================================
-// File: src/pages/MissionTerminal.tsx (MODIFIKASI UTAMA)
-// Deskripsi: Menangani pesan dari redirect callback Twitter dan menampilkannya sebagai toast.
+// File: src/pages/MissionTerminal.tsx (ENHANCED - Complete Action Integration)
+// Deskripsi: Menangani semua jenis action.type dari mission data dengan logika yang tepat
 // ===========================================================================
 import React, { useState, useEffect } from 'react';
-import { Trophy, Zap, Target, Award, Sparkles, CheckCircle, ExternalLink, Hourglass, XCircle, Loader2, AlertTriangle, Twitter, Filter } from 'lucide-react';
+import { Trophy, Zap, Target, Award, Sparkles, CheckCircle, ExternalLink, Hourglass, XCircle, Loader2, AlertTriangle, Twitter, Filter, Users, Eye, RefreshCw } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { 
     getMissionDirectives, 
@@ -19,17 +19,22 @@ import {
     MissionType,
 } from '../types/user';
 import toast from 'react-hot-toast';
-import { useLocation, useNavigate } from 'react-router-dom'; // Import useLocation dan useNavigate
+import { useLocation, useNavigate } from 'react-router-dom';
 
 const QUANTUM_FLUX_STABILITY = 87.0; 
 
 // Type untuk filter options
 type FilterType = 'all' | MissionType;
 
+// State untuk tracking redirect_and_verify missions
+interface RedirectVerifyState {
+  [missionId: string]: 'initial' | 'redirected' | 'verifying';
+}
+
 const MissionTerminal: React.FC = () => {
   const { isAuthenticated, user, isLoading: authLoading, fetchUserProfile, initiateTwitterConnect } = useAuth();
-  const location = useLocation(); // Hook untuk mendapatkan info lokasi/URL saat ini
-  const navigate = useNavigate(); // Hook untuk navigasi programatik (mengubah URL)
+  const location = useLocation();
+  const navigate = useNavigate();
 
   const [directives, setDirectives] = useState<MissionDirective[]>([]);
   const [userBadges, setUserBadges] = useState<UserBadge[]>([]);
@@ -38,7 +43,6 @@ const MissionTerminal: React.FC = () => {
     totalMissions: 0,
     activeSignals: 0,
   });
-  console.log(directives)
 
   const [isLoadingData, setIsLoadingData] = useState<boolean>(false);
   const [errorData, setErrorData] = useState<string | null>(null);
@@ -46,6 +50,9 @@ const MissionTerminal: React.FC = () => {
   
   // State untuk filter
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
+  
+  // State untuk tracking redirect_and_verify missions
+  const [redirectVerifyStates, setRedirectVerifyStates] = useState<RedirectVerifyState>({});
 
   const completedQuests = missionSummary.completedMissions;
   const totalQuests = missionSummary.totalMissions;
@@ -66,9 +73,9 @@ const MissionTerminal: React.FC = () => {
   // Filter button configuration
   const filterButtons = [
     { type: 'all' as FilterType, label: 'All', icon: Filter },
-    { type: 'social' as FilterType, label: 'Social', icon: Twitter },
-    { type: 'engagement' as FilterType, label: 'Engagement', icon: Zap },
-    { type: 'community' as FilterType, label: 'Community', icon: Trophy },
+    { type: 'connect' as FilterType, label: 'Connect', icon: Twitter },
+    { type: 'interact' as FilterType, label: 'Interact', icon: Zap },
+    { type: 'contribute' as FilterType, label: 'Contribute', icon: Trophy },
   ];
 
   const fetchData = async () => {
@@ -88,7 +95,6 @@ const MissionTerminal: React.FC = () => {
     } catch (error: any) {
       const errorMessage = error.response?.data?.detail || error.message || "Failed to load mission terminal data";
       setErrorData(errorMessage);
-      // Tidak menampilkan toast error di sini lagi, karena mungkin sudah ditangani oleh toast dari callback
       console.error("Error fetching mission terminal data:", error);
     } finally {
       setIsLoadingData(false);
@@ -109,12 +115,11 @@ const MissionTerminal: React.FC = () => {
       if (twitterConnectedStatus === 'true' && twitterMessage) {
         toast.success(decodeURIComponent(twitterMessage), { id: toastId });
       } else if (twitterError) {
-        toast.error(decodeURIComponent(twitterError), { id: toastId, duration: 5000 }); // Tampilkan lebih lama
+        toast.error(decodeURIComponent(twitterError), { id: toastId, duration: 5000 });
       } else if (twitterConnectedStatus === 'false' && twitterMessage) {
         toast.error(decodeURIComponent(twitterMessage), { id: toastId, duration: 5000 });
       }
       
-      // Hapus parameter dari URL setelah dibaca
       urlParams.delete('x_connected');
       urlParams.delete('message');
       urlParams.delete('error');
@@ -132,48 +137,253 @@ const MissionTerminal: React.FC = () => {
       setUserBadges([]);
       setMissionSummary({ completedMissions: 0, totalMissions: 0, activeSignals: 0 });
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated, authLoading, location.search, navigate]); // Tambahkan location.search dan navigate ke dependency array
+  }, [isAuthenticated, authLoading, location.search, navigate]);
+
+  // Helper function untuk mendapatkan status button dan label
+  const getMissionButtonState = (mission: MissionDirective) => {
+    const { action, status, missionId_str, currentProgress, requiredProgress } = mission;
+    const userAlliesCount = user?.alliesCount || 0;
+    const isTwitterConnected = !!user?.twitter_data?.twitter_username;
+    const redirectState = redirectVerifyStates[mission._id] || 'initial';
+
+    switch (action.type) {
+      case 'oauth_connect':
+        if (missionId_str === "connect-x-account") {
+          if (status === 'completed') {
+            return {
+              label: 'Connected',
+              icon: CheckCircle,
+              disabled: true,
+              variant: 'completed'
+            };
+          }
+          if (isTwitterConnected && status !== 'completed') {
+            return {
+              label: 'Verify Connection',
+              icon: RefreshCw,
+              disabled: false,
+              variant: 'verify'
+            };
+          }
+          return {
+            label: action.label,
+            icon: Twitter,
+            disabled: false,
+            variant: 'action'
+          };
+        }
+        break;
+
+      case 'claim_if_eligible':
+        const currentProg = currentProgress || 0;
+        const requiredProg = requiredProgress || 1;
+        const isEligible = currentProg >= requiredProg;
+        
+        if (status === 'completed') {
+          return {
+            label: 'Claimed',
+            icon: CheckCircle,
+            disabled: true,
+            variant: 'completed',
+            progress: { current: currentProg, required: requiredProg }
+          };
+        }
+        
+        return {
+          label: isEligible ? action.label : `Need ${requiredProg - currentProg} more`,
+          icon: isEligible ? Award : Users,
+          disabled: !isEligible,
+          variant: isEligible ? 'action' : 'disabled',
+          progress: { current: currentProg, required: requiredProg }
+        };
+
+      case 'redirect_and_verify':
+        if (status === 'completed') {
+          return {
+            label: 'Completed',
+            icon: CheckCircle,
+            disabled: true,
+            variant: 'completed'
+          };
+        }
+        
+        if (redirectState === 'initial') {
+          return {
+            label: action.label,
+            icon: ExternalLink,
+            disabled: false,
+            variant: 'action'
+          };
+        } else if (redirectState === 'redirected') {
+          return {
+            label: 'Verify Completion',
+            icon: Eye,
+            disabled: false,
+            variant: 'verify'
+          };
+        } else if (redirectState === 'verifying') {
+          return {
+            label: 'Verifying...',
+            icon: Loader2,
+            disabled: true,
+            variant: 'loading'
+          };
+        }
+        break;
+
+      default:
+        if (status === 'completed') {
+          return {
+            label: 'Completed',
+            icon: CheckCircle,
+            disabled: true,
+            variant: 'completed'
+          };
+        }
+        return {
+          label: action.label,
+          icon: Zap,
+          disabled: action.type === 'disabled',
+          variant: action.type === 'disabled' ? 'disabled' : 'action'
+        };
+    }
+
+    return {
+      label: action.label,
+      icon: Zap,
+      disabled: true,
+      variant: 'disabled'
+    };
+  };
 
   const handleMissionAction = async (mission: MissionDirective) => {
-    if (mission.action.type === "external_link" && mission.action.url) {
-      window.open(mission.action.url, '_blank');
-      toast.info(`Membuka link untuk misi: ${mission.title}. Pastikan Anda kembali untuk verifikasi jika diperlukan.`);
-    } else if (mission.action.type === "oauth_connect") {
-        if (mission.missionId_str === "connect-x-account") {
-            if (user?.twitter_data) {
-                toast.success("X account already connected!", {id: `mission-${mission.id}`});
-                // Mungkin refresh data untuk memastikan status misi 'completed'
-                await fetchData();
-                if(fetchUserProfile) await fetchUserProfile();
-                return;
-            }
-            await initiateTwitterConnect();
-        } else {
-            toast.error("Aksi OAuth tidak dikenal untuk misi ini.");
-        }
-    } else if (mission.action.type === "api_call") {
-      setCompletingMissionId(mission.id);
-      const toastId = `mission-${mission.id}`;
-      try {
-        toast.loading(`Processing mission: ${mission.title}...`, { id: toastId });
-        const result = await completeMissionDirective(mission.missionId_str); 
-        toast.success(result.message || `Mission '${mission.title}' completed successfully!`, { id: toastId });
+    const { action, missionId_str } = mission;
+    const redirectState = redirectVerifyStates[mission._id] || 'initial';
+
+    if (action.type === "oauth_connect") {
+      if (missionId_str === "connect-x-account") {
+        const isTwitterConnected = !!user?.twitter_data?.twitter_username;
         
-        await fetchData(); 
+        if (isTwitterConnected && mission.status !== 'completed') {
+          // User has connected Twitter but mission not marked as completed - verify
+          setCompletingMissionId(mission._id);
+          const toastId = `mission-${mission._id}`;
+          try {
+            toast.loading(`Verifying X connection...`, { id: toastId });
+            const result = await completeMissionDirective(missionId_str);
+            toast.success(result.message || `X connection verified successfully!`, { id: toastId });
+            
+            await fetchData();
+            if(fetchUserProfile) await fetchUserProfile();
+          } catch (error: any) {
+            const errorMsg = error.response?.data?.detail || `Failed to verify X connection`;
+            toast.error(errorMsg, { id: toastId });
+            console.error(`Error verifying X connection:`, error);
+          } finally {
+            setCompletingMissionId(null);
+          }
+        } else if (!isTwitterConnected) {
+          // Initiate Twitter OAuth
+          await initiateTwitterConnect();
+        } else {
+          toast.success("X account already connected!", {id: `mission-${mission._id}`});
+        }
+      }
+    } 
+    else if (action.type === "claim_if_eligible") {
+      const currentProg = mission.currentProgress || 0;
+      const requiredProg = mission.requiredProgress || 1;
+      const isEligible = currentProg >= requiredProg;
+      
+      if (!isEligible) {
+        toast.error(`You need ${requiredProg - currentProg} more allies to claim this reward.`);
+        return;
+      }
+      
+      setCompletingMissionId(mission._id);
+      const toastId = `mission-${mission._id}`;
+      try {
+        toast.loading(`Claiming reward: ${mission.title}...`, { id: toastId });
+        const result = await completeMissionDirective(missionId_str);
+        toast.success(result.message || `Reward claimed successfully!`, { id: toastId });
+        
+        await fetchData();
         if(fetchUserProfile) await fetchUserProfile();
       } catch (error: any) {
-        const errorMsg = error.response?.data?.detail || `Gagal menyelesaikan misi: ${mission.title}`;
+        const errorMsg = error.response?.data?.detail || `Failed to claim reward`;
         toast.error(errorMsg, { id: toastId });
-        console.error(`Error completing mission ${mission.missionId_str} via API:`, error);
+        console.error(`Error claiming reward:`, error);
       } finally {
         setCompletingMissionId(null);
-        // Tidak dismiss toast di sini agar pesan sukses/error bisa dibaca user
       }
-    } else if (mission.action.type === "completed") {
-        toast.success(`Misi '${mission.title}' sudah selesai!`);
-    } else if (mission.action.type === "disabled") {
-        toast.error(`Aksi untuk misi '${mission.title}' belum tersedia atau prasyarat belum terpenuhi.`);
+    }
+    else if (action.type === "redirect_and_verify") {
+      if (redirectState === 'initial' && action.url) {
+        // First click - redirect to URL
+        window.open(action.url, '_blank');
+        setRedirectVerifyStates(prev => ({
+          ...prev,
+          [mission._id]: 'redirected'
+        }));
+        toast.info(`Opened ${mission.title}. Return here to verify completion.`);
+      } 
+      else if (redirectState === 'redirected') {
+        // Second click - verify completion
+        setRedirectVerifyStates(prev => ({
+          ...prev,
+          [mission._id]: 'verifying'
+        }));
+        
+        const toastId = `mission-${mission._id}`;
+        try {
+          toast.loading(`Verifying completion: ${mission.title}...`, { id: toastId });
+          const result = await completeMissionDirective(missionId_str);
+          toast.success(result.message || `Mission completed successfully!`, { id: toastId });
+          
+          // Reset state on success
+          setRedirectVerifyStates(prev => ({
+            ...prev,
+            [mission._id]: 'initial'
+          }));
+          
+          await fetchData();
+          if(fetchUserProfile) await fetchUserProfile();
+        } catch (error: any) {
+          const errorMsg = error.response?.data?.detail || `Failed to verify completion`;
+          toast.error(errorMsg, { id: toastId });
+          console.error(`Error verifying completion:`, error);
+          
+          // Reset to redirected state on error
+          setRedirectVerifyStates(prev => ({
+            ...prev,
+            [mission._id]: 'redirected'
+          }));
+        }
+      }
+    }
+    else if (action.type === "api_call") {
+      setCompletingMissionId(mission._id);
+      const toastId = `mission-${mission._id}`;
+      try {
+        toast.loading(`Processing mission: ${mission.title}...`, { id: toastId });
+        const result = await completeMissionDirective(missionId_str);
+        toast.success(result.message || `Mission '${mission.title}' completed successfully!`, { id: toastId });
+        
+        await fetchData();
+        if(fetchUserProfile) await fetchUserProfile();
+      } catch (error: any) {
+        const errorMsg = error.response?.data?.detail || `Failed to complete mission: ${mission.title}`;
+        toast.error(errorMsg, { id: toastId });
+        console.error(`Error completing mission ${missionId_str} via API:`, error);
+      } finally {
+        setCompletingMissionId(null);
+      }
+    }
+    else if (action.type === "completed") {
+      toast.success(`Mission '${mission.title}' is already completed!`);
+    } 
+    else if (action.type === "disabled") {
+      toast.error(`Action for mission '${mission.title}' is not available or prerequisites not met.`);
     }
   };
 
@@ -189,6 +399,22 @@ const MissionTerminal: React.FC = () => {
       case 'available':
       default:
         return <Zap size={16} className="text-cyan-400" />;
+    }
+  };
+
+  const getButtonStyles = (variant: string) => {
+    switch (variant) {
+      case 'completed':
+        return 'bg-gray-700/30 text-gray-500 cursor-not-allowed';
+      case 'disabled':
+        return 'bg-gray-700/30 text-gray-500 cursor-not-allowed opacity-50';
+      case 'verify':
+        return 'bg-gradient-to-r from-yellow-500/20 to-orange-500/20 border border-yellow-500/30 text-white hover:from-yellow-500/30 hover:to-orange-500/30';
+      case 'loading':
+        return 'bg-gray-700/50 text-gray-400 cursor-wait';
+      case 'action':
+      default:
+        return 'bg-gradient-to-r from-purple-500/20 to-cyan-500/20 border border-purple-500/30 text-white hover:from-purple-500/30 hover:to-cyan-500/30';
     }
   };
   
@@ -229,8 +455,6 @@ const MissionTerminal: React.FC = () => {
       </div>
     );
   }
-
-  const isTwitterConnected = !!user?.twitter_data?.twitter_username;
 
   return (
     <div className="p-3 sm:p-6 space-y-4 sm:space-y-6">
@@ -381,165 +605,168 @@ const MissionTerminal: React.FC = () => {
             <div className="flex justify-center py-8"><Loader2 className="animate-spin text-cyan-400" size={32}/></div>
           ) : filteredDirectives.length > 0 ? (
             <div className="space-y-3 sm:space-y-4">
-              {filteredDirectives.map(mission => (
-                <div 
-                  key={mission.id}
-                  className={`bg-gray-800/30 rounded-lg p-3 sm:p-4 border border-purple-900/30 relative group hover:bg-gray-800/50 transition-all duration-300 ${mission.status === 'completed' ? 'opacity-60' : ''}`}
-                >
-                  {/* Mobile Layout */}
-                  <div className="block sm:hidden space-y-3">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap mb-1">
-                          <h3 className="font-orbitron text-white text-sm truncate">{mission.title}</h3>
-                          {mission.status === 'completed' && (
-                            <span className="px-2 py-0.5 bg-green-500/20 text-[10px] font-mono text-green-400 rounded-full flex-shrink-0">
-                              COMPLETED
+              {filteredDirectives.map(mission => {
+                const buttonState = getMissionButtonState(mission);
+                const IconComponent = buttonState.icon;
+                const isProcessing = completingMissionId === mission._id;
+
+                return (
+                  <div 
+                    key={mission._id}
+                    className={`bg-gray-800/30 rounded-lg p-3 sm:p-4 border border-purple-900/30 relative group hover:bg-gray-800/50 transition-all duration-300 ${mission.status === 'completed' ? 'opacity-60' : ''}`}
+                  >
+                    {/* Mobile Layout */}
+                    <div className="block sm:hidden space-y-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap mb-1">
+                            <h3 className="font-orbitron text-white text-sm truncate">{mission.title}</h3>
+                            {mission.status === 'completed' && (
+                              <span className="px-2 py-0.5 bg-green-500/20 text-[10px] font-mono text-green-400 rounded-full flex-shrink-0">
+                                COMPLETED
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className={`px-2 py-0.5 rounded-full text-xs font-mono ${
+                              mission.type === 'connect' ? 'bg-blue-500/20 text-blue-400' :
+                              mission.type === 'interact' ? 'bg-yellow-500/20 text-yellow-400' :
+                              mission.type === 'contribute' ? 'bg-green-500/20 text-green-400' :
+                              'bg-gray-500/20 text-gray-400'
+                            }`}>
+                              {mission.type.toUpperCase()}
+                            </span>
+                            {getStatusIcon(mission.status)}
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <p className="text-xs text-gray-400 font-mono leading-relaxed">{mission.description}</p>
+                      
+                      {/* Progress indicator for claim_if_eligible */}
+                      {mission.action.type === 'claim_if_eligible' && buttonState.progress && (
+                        <div className="bg-gray-700/30 rounded-md p-2">
+                          <div className="flex items-center justify-between text-xs font-mono mb-1">
+                            <span className="text-gray-400">Progress</span>
+                            <span className="text-cyan-400">
+                              {buttonState.progress.current} / {buttonState.progress.required} Allies
+                            </span>
+                          </div>
+                          <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
+                            <div 
+                              className="h-full bg-gradient-to-r from-purple-500 to-cyan-400 transition-all duration-500"
+                              style={{ width: `${Math.min((buttonState.progress.current / buttonState.progress.required) * 100, 100)}%` }}
+                            />
+                          </div>
+                        </div>
+                      )}
+                      
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3 text-xs font-mono">
+                          <span className="text-cyan-400">+{mission.rewardXp} XP</span>
+                          {mission.rewardBadge && (
+                            <span className="text-purple-400 flex items-center gap-1">
+                              <Award size={10} />
+                              <span className="truncate max-w-[80px]">{mission.rewardBadge.name}</span>
                             </span>
                           )}
                         </div>
-                        <div className="flex items-center gap-2 mb-2">
+                        
+                        <button 
+                          onClick={() => handleMissionAction(mission)}
+                          disabled={buttonState.disabled || isProcessing}
+                          className={`px-3 py-1.5 rounded-md font-orbitron text-xs relative group overflow-hidden flex-shrink-0 transition-all duration-300 ${getButtonStyles(buttonState.variant)}`}
+                        >
+                          {buttonState.variant === 'action' && (
+                            <div className="absolute inset-0 bg-gradient-to-r from-purple-500/40 via-cyan-500/40 to-green-500/40 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                          )}
+                          <span className="relative flex items-center justify-center gap-1">
+                            {isProcessing ? (
+                              <Loader2 size={12} className="animate-spin" />
+                            ) : (
+                              <IconComponent size={12} className={buttonState.variant === 'loading' ? 'animate-spin' : ''} />
+                            )}
+                            <span className="text-xs">
+                              {isProcessing ? "..." : buttonState.label}
+                            </span>
+                          </span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Desktop Layout */}
+                    <div className="hidden sm:flex items-start justify-between gap-4">
+                      <div className="space-y-2 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="font-orbitron text-white">{mission.title}</h3>
                           <span className={`px-2 py-0.5 rounded-full text-xs font-mono ${
-                            mission.type === 'social' ? 'bg-blue-500/20 text-blue-400' :
-                            mission.type === 'engagement' ? 'bg-yellow-500/20 text-yellow-400' :
-                            mission.type === 'community' ? 'bg-green-500/20 text-green-400' :
+                            mission.type === 'connect' ? 'bg-blue-500/20 text-blue-400' :
+                            mission.type === 'interact' ? 'bg-yellow-500/20 text-yellow-400' :
+                            mission.type === 'contribute' ? 'bg-green-500/20 text-green-400' :
                             'bg-gray-500/20 text-gray-400'
                           }`}>
                             {mission.type.toUpperCase()}
                           </span>
-                          {getStatusIcon(mission.status)}
+                          {mission.status === 'completed' && (
+                            <span className="px-2 py-0.5 bg-green-500/20 text-[10px] font-mono text-green-400 rounded-full">
+                              COMPLETED
+                            </span>
+                          )}
                         </div>
-                      </div>
-                    </div>
-                    
-                    <p className="text-xs text-gray-400 font-mono leading-relaxed">{mission.description}</p>
-                    
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3 text-xs font-mono">
-                        <span className="text-cyan-400">+{mission.rewardXp} XP</span>
-                        {mission.rewardBadge && (
-                          <span className="text-purple-400 flex items-center gap-1">
-                            <Award size={10} />
-                            <span className="truncate max-w-[80px]">{mission.rewardBadge.name}</span>
-                          </span>
+                        <p className="text-sm text-gray-400 font-mono">{mission.description}</p>
+                        
+                        {/* Progress indicator for claim_if_eligible */}
+                        {mission.action.type === 'claim_if_eligible' && buttonState.progress && (
+                          <div className="bg-gray-700/30 rounded-md p-2 max-w-xs">
+                            <div className="flex items-center justify-between text-xs font-mono mb-1">
+                              <span className="text-gray-400">Progress</span>
+                              <span className="text-cyan-400">
+                                {buttonState.progress.current} / {buttonState.progress.required} Allies
+                              </span>
+                            </div>
+                            <div className="h-2 bg-gray-800 rounded-full overflow-hidden">
+                              <div 
+                                className="h-full bg-gradient-to-r from-purple-500 to-cyan-400 transition-all duration-500"
+                                style={{ width: `${Math.min((buttonState.progress.current / buttonState.progress.required) * 100, 100)}%` }}
+                              />
+                            </div>
+                          </div>
                         )}
+                        
+                        <div className="flex items-center gap-3 text-xs font-mono">
+                          <span className="text-cyan-400">+{mission.rewardXp} XP</span>
+                          {mission.rewardBadge && (
+                            <span className="text-purple-400 flex items-center gap-1">
+                              <Award size={12} />
+                              {mission.rewardBadge.name}
+                            </span>
+                          )}
+                        </div>
                       </div>
                       
                       <button 
                         onClick={() => handleMissionAction(mission)}
-                        disabled={
-                          (mission.missionId_str === "connect-x-account" && isTwitterConnected && mission.status !== 'completed') ||
-                          mission.action.type === 'disabled' || 
-                          mission.status === 'completed' || 
-                          completingMissionId === mission.id
-                        }
-                        className={`px-3 py-1.5 rounded-md font-orbitron text-xs relative group overflow-hidden flex-shrink-0
-                          ${mission.status === 'completed' || (mission.missionId_str === "connect-x-account" && isTwitterConnected && mission.status !== 'completed')
-                            ? 'bg-gray-700/30 text-gray-500 cursor-not-allowed' 
-                            : 'bg-gradient-to-r from-purple-500/20 to-cyan-500/20 border border-purple-500/30 text-white hover:from-purple-500/30 hover:to-cyan-500/30 disabled:opacity-50'}`}
+                        disabled={buttonState.disabled || isProcessing}
+                        className={`px-4 py-2 rounded-lg font-orbitron text-sm relative group overflow-hidden whitespace-nowrap transition-all duration-300 ${getButtonStyles(buttonState.variant)}`}
                       >
-                        {mission.status !== 'completed' && mission.action.type !== 'disabled' && !(mission.missionId_str === "connect-x-account" && isTwitterConnected) && (
+                        {buttonState.variant === 'action' && (
                           <div className="absolute inset-0 bg-gradient-to-r from-purple-500/40 via-cyan-500/40 to-green-500/40 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                         )}
-                        <span className="relative flex items-center justify-center gap-1">
-                          {completingMissionId === mission.id ? (
-                              <Loader2 size={12} className="animate-spin" />
-                          ) : mission.missionId_str === "connect-x-account" ? (
-                              isTwitterConnected ? <CheckCircle size={12} className="text-green-400"/> : <Twitter size={12} />
-                          ) : mission.action.type === "external_link" ? (
-                              <ExternalLink size={12} />
-                          ) : mission.status === 'completed' ? (
-                              <CheckCircle size={12} />
+                        <span className="relative flex items-center justify-center gap-1.5">
+                          {isProcessing ? (
+                            <Loader2 size={14} className="animate-spin" />
                           ) : (
-                              <Zap size={12} />
+                            <IconComponent size={14} className={buttonState.variant === 'loading' ? 'animate-spin' : ''} />
                           )}
-                          <span className="text-xs">
-                              {completingMissionId === mission.id 
-                                  ? "..." 
-                                  : mission.missionId_str === "connect-x-account" 
-                                      ? (isTwitterConnected ? "Connected" : "Connect")
-                                      : mission.status === 'completed' 
-                                          ? 'Done' 
-                                          : 'Start'}
+                          <span>
+                            {isProcessing ? "Processing..." : buttonState.label}
                           </span>
                         </span>
                       </button>
                     </div>
                   </div>
-
-                  {/* Desktop Layout */}
-                  <div className="hidden sm:flex items-start justify-between gap-4">
-                    <div className="space-y-2 flex-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <h3 className="font-orbitron text-white">{mission.title}</h3>
-                        <span className={`px-2 py-0.5 rounded-full text-xs font-mono ${
-                          mission.type === 'social' ? 'bg-blue-500/20 text-blue-400' :
-                          mission.type === 'engagement' ? 'bg-yellow-500/20 text-yellow-400' :
-                          mission.type === 'community' ? 'bg-green-500/20 text-green-400' :
-                          'bg-gray-500/20 text-gray-400'
-                        }`}>
-                          {mission.type.toUpperCase()}
-                        </span>
-                        {mission.status === 'completed' && (
-                          <span className="px-2 py-0.5 bg-green-500/20 text-[10px] font-mono text-green-400 rounded-full">
-                            COMPLETED
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-sm text-gray-400 font-mono">{mission.description}</p>
-                      <div className="flex items-center gap-3 text-xs font-mono">
-                        <span className="text-cyan-400">+{mission.rewardXp} XP</span>
-                        {mission.rewardBadge && (
-                          <span className="text-purple-400 flex items-center gap-1">
-                            <Award size={12} />
-                            {mission.rewardBadge.name}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    
-                    <button 
-                      onClick={() => handleMissionAction(mission)}
-                      disabled={
-                        (mission.missionId_str === "connect-x-account" && isTwitterConnected && mission.status !== 'completed') ||
-                        mission.action.type === 'disabled' || 
-                        mission.status === 'completed' || 
-                        completingMissionId === mission.id
-                      }
-                      className={`px-4 py-2 rounded-lg font-orbitron text-sm relative group overflow-hidden whitespace-nowrap
-                        ${mission.status === 'completed' || (mission.missionId_str === "connect-x-account" && isTwitterConnected && mission.status !== 'completed')
-                          ? 'bg-gray-700/30 text-gray-500 cursor-not-allowed' 
-                          : 'bg-gradient-to-r from-purple-500/20 to-cyan-500/20 border border-purple-500/30 text-white hover:from-purple-500/30 hover:to-cyan-500/30 disabled:opacity-50'}`}
-                    >
-                      {mission.status !== 'completed' && mission.action.type !== 'disabled' && !(mission.missionId_str === "connect-x-account" && isTwitterConnected) && (
-                        <div className="absolute inset-0 bg-gradient-to-r from-purple-500/40 via-cyan-500/40 to-green-500/40 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                      )}
-                      <span className="relative flex items-center justify-center gap-1.5">
-                        {completingMissionId === mission.id ? (
-                            <Loader2 size={14} className="animate-spin" />
-                        ) : mission.missionId_str === "connect-x-account" ? (
-                            isTwitterConnected ? <CheckCircle size={14} className="text-green-400"/> : <Twitter size={14} />
-                        ) : mission.action.type === "external_link" ? (
-                            <ExternalLink size={14} />
-                        ) : mission.status === 'completed' ? (
-                            <CheckCircle size={14} />
-                        ) : (
-                            <Zap size={14} />
-                        )}
-                        <span>
-                            {completingMissionId === mission.id 
-                                ? "Processing..." 
-                                : mission.missionId_str === "connect-x-account" 
-                                    ? (isTwitterConnected ? "X Connected" : mission.action.label)
-                                    : mission.status === 'completed' 
-                                        ? 'Completed' 
-                                        : mission.action.label}
-                        </span>
-                      </span>
-                    </button>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           ) : (
              <div className="text-center py-8 text-gray-500 font-mono">

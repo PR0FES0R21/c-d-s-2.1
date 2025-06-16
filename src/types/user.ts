@@ -73,7 +73,7 @@ export interface MissionAction {
 }
 
 export type MissionStatus = "available" | "in_progress" | "completed" | "pending_verification" | "failed";
-export type MissionType = "social" | "engagement" | "community" | "special";
+export type MissionType = "connect" | "interact" | "contribute" | "special";
 
 
 export interface MissionDirective {

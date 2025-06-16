@@ -38,9 +38,9 @@ const MissionProgress: React.FC = () => {
   // Calculate mission statistics by type
   const calculateMissionStats = () => {
     const stats = {
-      social: { completed: 0, total: 0 },
-      engagement: { completed: 0, total: 0 },
-      community: { completed: 0, total: 0 }
+      connect: { completed: 0, total: 0 },
+      interact: { completed: 0, total: 0 },
+      contribute: { completed: 0, total: 0 }
     };
 
     directives.forEach(directive => {
@@ -77,21 +77,21 @@ const MissionProgress: React.FC = () => {
   const missionStatsDisplay = [
     {
       icon: <Megaphone size={16} className="text-purple-400" />,
-      label: "Social",
-      value: `${missionStats.social.completed}/${missionStats.social.total}`,
-      trend: missionStats.social.completed > 0 ? `+${missionStats.social.completed} completed` : "No progress yet"
+      label: "Connect",
+      value: `${missionStats.connect.completed}/${missionStats.connect.total}`,
+      trend: missionStats.connect.completed > 0 ? `+${missionStats.connect.completed} completed` : "No progress yet"
     },
     {
       icon: <LineChart size={16} className="text-cyan-400" />,
-      label: "Engagement",
-      value: `${missionStats.engagement.completed}/${missionStats.engagement.total}`,
-      trend: missionStats.engagement.completed > 0 ? `+${missionStats.engagement.completed} completed` : "No progress yet"
+      label: "Interact",
+      value: `${missionStats.interact.completed}/${missionStats.interact.total}`,
+      trend: missionStats.interact.completed > 0 ? `+${missionStats.interact.completed} completed` : "No progress yet"
     },
     {
       icon: <Globe size={16} className="text-green-400" />,
-      label: "Community",
-      value: `${missionStats.community.completed}/${missionStats.community.total}`,
-      trend: missionStats.community.completed > 0 ? `+${missionStats.community.completed} completed` : "No progress yet"
+      label: "Contribute",
+      value: `${missionStats.contribute.completed}/${missionStats.contribute.total}`,
+      trend: missionStats.contribute.completed > 0 ? `+${missionStats.contribute.completed} completed` : "No progress yet"
     }
   ];
 
