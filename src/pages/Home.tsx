@@ -34,7 +34,7 @@ const Home: React.FC = () => {
             </div>
             
             {/* Divider - Vertical on desktop, horizontal on mobile */}
-            <div className="lg:w-px lg:h-auto h-px bg-gradient-to-r lg:bg-gradient-to-b from-transparent via-purple-500/30 to-transparent"></div>
+            <div className="mt-4 lg:mt-0 lg:w-px lg:h-auto h-px bg-gradient-to-r lg:bg-gradient-to-b from-transparent via-purple-500/30 to-transparent"></div>
             
             {/* Right Column - Ally Tracker (50%) */}
             <div className="flex-1 lg:w-1/2 p-3 sm:p-5">
