@@ -83,9 +83,7 @@ const AllyTracker: React.FC = () => {
 
   return (
     <>
-      <div className="relative rounded-lg overflow-hidden bg-gradient-to-br from-gray-900 via-gray-900 to-gray-900/80 border border-purple-500/20 backdrop-blur-sm p-5 h-full">
-        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-500 via-cyan-400 to-green-400"></div>
-        
+      <div className="h-full flex flex-col">
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-lg font-orbitron font-bold text-white flex items-center gap-2">
             <Satellite size={18} className="text-cyan-400" />
@@ -102,7 +100,7 @@ const AllyTracker: React.FC = () => {
           </div>
         </div>
 
-        <div className="space-y-4">
+        <div className="space-y-4 flex-1 flex flex-col">
           <div className="bg-gray-800/50 rounded-lg p-4 border border-purple-900/30">
             <div className="text-sm font-mono text-gray-400 mb-2">TOTAL RECRUITS</div>
             <div className="text-3xl font-orbitron font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-cyan-300 to-green-400">
@@ -110,7 +108,7 @@ const AllyTracker: React.FC = () => {
             </div>
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-2 flex-1 flex flex-col min-h-0">
             {isLoadingAllies && (
               <div className="flex justify-center items-center min-h-[150px]"> {/* Tinggi minimal untuk loader */}
                 <Loader2 size={24} className="text-cyan-400 animate-spin" />
@@ -129,7 +127,7 @@ const AllyTracker: React.FC = () => {
               </div>
             )}
             {!isLoadingAllies && !errorAllies && alliesData && alliesData.allies.length > 0 && (
-              <div className="max-h-[200px] overflow-y-auto hide-scrollbar space-y-2">
+              <div className="max-h-[200px] overflow-y-auto hide-scrollbar space-y-2 flex-1">
                 {alliesData.allies.map((ally) => (
                   <div 
                     key={ally.id}
@@ -199,7 +197,7 @@ const AllyTracker: React.FC = () => {
 
           <button 
             onClick={() => setIsModalOpen(true)}
-            className="w-full px-6 py-3 bg-gradient-to-r from-purple-500/20 to-cyan-500/20 border border-purple-500/30 rounded-lg font-orbitron text-sm text-white relative group overflow-hidden"
+            className="w-full px-6 py-3 bg-gradient-to-r from-purple-500/20 to-cyan-500/20 border border-purple-500/30 rounded-lg font-orbitron text-sm text-white relative group overflow-hidden mt-auto"
           >
             <div className="absolute inset-0 bg-gradient-to-r from-purple-500/40 via-cyan-500/40 to-green-500/40 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
             <div className="relative flex items-center justify-center gap-2 mt-auto">
@@ -208,11 +206,6 @@ const AllyTracker: React.FC = () => {
             </div>
             <div className="absolute inset-0 border border-purple-500/50 rounded-lg opacity-0 group-hover:opacity-100 scale-105 group-hover:scale-100 transition-all duration-500"></div>
           </button>
-        </div>
-
-        <div className="absolute bottom-0 right-0 w-full h-40 pointer-events-none opacity-10">
-          <div className="absolute bottom-0 right-0 w-60 h-60 bg-cyan-500 rounded-full filter blur-3xl"></div>
-          <div className="absolute bottom-10 right-10 w-40 h-40 bg-purple-500 rounded-full filter blur-3xl"></div>
         </div>
       </div>
 

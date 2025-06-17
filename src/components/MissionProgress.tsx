@@ -97,8 +97,7 @@ const MissionProgress: React.FC = () => {
 
   if (!isAuthenticated && !authLoading) {
     return (
-      <div className="relative rounded-lg overflow-hidden bg-gradient-to-br from-gray-900 via-gray-900 to-gray-900/80 border border-purple-500/20 backdrop-blur-sm p-5 h-full flex items-center justify-center">
-        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-500 via-cyan-400 to-green-400"></div>
+      <div className="h-full flex items-center justify-center">
         <div className="text-center text-gray-500 font-mono">
           <Flask size={40} className="mx-auto mb-3 opacity-50" />
           Connect wallet to view progress.
@@ -108,9 +107,7 @@ const MissionProgress: React.FC = () => {
   }
 
   return (
-    <div className="relative rounded-lg overflow-hidden bg-gradient-to-br from-gray-900 via-gray-900 to-gray-900/80 border border-purple-500/20 backdrop-blur-sm p-5 h-full">
-      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-500 via-cyan-400 to-green-400"></div>
-      
+    <div className="h-full flex flex-col">
       <div className="flex items-center justify-between mb-5">
         <h2 className="text-lg font-orbitron font-bold text-white flex items-center gap-2">
           <Flask size={18} className="text-purple-400" />
@@ -121,7 +118,7 @@ const MissionProgress: React.FC = () => {
         </div>
       </div>
 
-      <div className="space-y-6">
+      <div className="space-y-6 flex-1">
         <div className="relative pt-4">
           <div className="flex justify-between mb-2 text-sm font-mono">
             <span className="text-cyan-400">
@@ -203,7 +200,7 @@ const MissionProgress: React.FC = () => {
         </div>
 
         <button 
-          className="w-full px-6 py-3 bg-gradient-to-r from-purple-500/20 to-cyan-500/20 border border-purple-500/30 rounded-lg font-orbitron text-sm text-white relative group overflow-hidden"
+          className="w-full px-6 py-3 bg-gradient-to-r from-purple-500/20 to-cyan-500/20 border border-purple-500/30 rounded-lg font-orbitron text-sm text-white relative group overflow-hidden mt-auto"
           disabled={isLoadingDirectives}
         >
           <div className="absolute inset-0 bg-gradient-to-r from-purple-500/40 via-cyan-500/40 to-green-500/40 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
@@ -227,11 +224,6 @@ const MissionProgress: React.FC = () => {
           </div>
           <div className="absolute inset-0 border border-purple-500/50 rounded-lg opacity-0 group-hover:opacity-100 scale-105 group-hover:scale-100 transition-all duration-500"></div>
         </button>
-      </div>
-
-      <div className="absolute bottom-0 right-0 w-full h-40 pointer-events-none opacity-10">
-        <div className="absolute bottom-0 right-0 w-60 h-60 bg-purple-500 rounded-full filter blur-3xl"></div>
-        <div className="absolute bottom-10 right-10 w-40 h-40 bg-cyan-500 rounded-full filter blur-3xl"></div>
       </div>
     </div>
   );
