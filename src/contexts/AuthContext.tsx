@@ -1,17 +1,23 @@
 // ===========================================================================
-// File: src/context/AuthContext.tsx (MODIFIKASI - Auto Sign-in dan Clear Storage)
-// Deskripsi: React Context untuk manajemen state autentikasi dengan auto sign-in dan cleanup storage.
+// File: src/contexts/AuthContext.tsx (UPDATED - Cookie-based Authentication)
+// Deskripsi: React Context untuk manajemen state autentikasi dengan cookie-based auth.
 // ===========================================================================
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useAccount, useSignMessage, useDisconnect } from 'wagmi';
-import apiClient, { getTwitterOAuthUrl } from '../services/apiService';
+import { 
+  getCurrentUser, 
+  getChallengeMessage, 
+  connectWallet, 
+  logoutUser, 
+  getTwitterOAuthUrl 
+} from '../services/apiService';
 import { UserPublic } from '../types/user';
+import { AuthSuccessResponse } from '../types/auth';
 import toast from 'react-hot-toast';
 
 interface AuthContextType {
   isAuthenticated: boolean;
   user: UserPublic | null;
-  token: string | null;
   isLoading: boolean;
   isFetchingProfile: boolean;
   logout: () => void;
@@ -23,7 +29,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const PENDING_REFERRAL_CODE_KEY = 'pending_referral_code';
 
-// Fungsi untuk membersihkan semua localStorage kecuali referral code
+// Fungsi untuk membersihkan localStorage kecuali referral code
 const clearAuthStorage = () => {
   const pendingReferralCode = localStorage.getItem(PENDING_REFERRAL_CODE_KEY);
   localStorage.clear();
@@ -35,7 +41,6 @@ const clearAuthStorage = () => {
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [user, setUser] = useState<UserPublic | null>(null);
-  const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isFetchingProfile, setIsFetchingProfile] = useState<boolean>(false);
   const [hasTriedAutoAuth, setHasTriedAutoAuth] = useState<boolean>(false);
@@ -44,38 +49,21 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const { signMessageAsync } = useSignMessage();
   const { disconnect } = useDisconnect();
 
-  const fetchUserProfile = async (currentToken?: string) => {
-    const tokenToUse = currentToken || token;
-    if (!tokenToUse) {
-      setUser(null);
-      setIsAuthenticated(false);
-      clearAuthStorage();
-      delete apiClient.defaults.headers.common['Authorization'];
-      return;
-    }
-
+  const fetchUserProfile = async () => {
     setIsFetchingProfile(true);
-    if (!apiClient.defaults.headers.common['Authorization'] && tokenToUse) {
-        apiClient.defaults.headers.common['Authorization'] = `Bearer ${tokenToUse}`;
-    }
-
     try {
       console.log("AuthContext: Fetching user profile...");
-      const response = await apiClient.get<UserPublic>('/users/me');
-      const updatedUserData = response.data;
-      setUser(updatedUserData);
+      const userData = await getCurrentUser();
+      setUser(userData);
       setIsAuthenticated(true);
-      localStorage.setItem('cigar_ds_user', JSON.stringify(updatedUserData));
-      console.info("AuthContext: User profile refreshed and stored.");
+      console.info("AuthContext: User profile refreshed.");
     } catch (error: any) {
       console.error("AuthContext: Error fetching user profile:", error);
       if (error.response?.status === 401) {
-        toast.error("Sesi Anda tidak valid atau telah berakhir. Silakan login kembali.");
-        setToken(null);
+        console.log("AuthContext: Authentication failed - clearing state");
         setUser(null);
         setIsAuthenticated(false);
         clearAuthStorage();
-        delete apiClient.defaults.headers.common['Authorization'];
       }
     } finally {
       setIsFetchingProfile(false);
@@ -95,8 +83,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const walletAddress = address;
 
       console.log("Auto authentication: Requesting challenge...");
-      const challengeResponse = await apiClient.get(`/auth/challenge`, { params: { walletAddress } });
-      const { messageToSign, nonce } = challengeResponse.data;
+      const { messageToSign, nonce } = await getChallengeMessage(walletAddress);
       
       if (!messageToSign || !nonce) {
         console.error("Auto authentication: Failed to get challenge");
@@ -130,31 +117,26 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         console.log("Auto authentication: Using referral code:", pendingReferralCode);
       }
       
-      const connectResponse = await apiClient.post('/auth/connect', connectPayload);
+      const response: AuthSuccessResponse = await connectWallet(connectPayload);
 
-      const { access_token, user: userData } = connectResponse.data;
-
-      if (access_token && userData) {
-        setToken(access_token);
-        setUser(userData);
-        setIsAuthenticated(true);
-        localStorage.setItem('cigar_ds_token', access_token);
-        localStorage.setItem('cigar_ds_user', JSON.stringify(userData));
-        apiClient.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
-        toast.success(`Welcome back, ${userData.username}!`);
+      if (response.message) {
+        // Fetch user profile setelah berhasil connect
+        await fetchUserProfile();
+        toast.success(response.message);
 
         if (pendingReferralCode) {
           localStorage.removeItem(PENDING_REFERRAL_CODE_KEY);
           console.log("Auto authentication: Referral code used and removed.");
         }
       } else {
-        console.error("Auto authentication: Incomplete data from server");
+        console.error("Auto authentication: No success message from server");
       }
 
     } catch (error: any) {
       console.error("Auto authentication failed:", error);
+      const errorMessage = error.response?.data?.detail || "Authentication failed";
       // Tidak menampilkan toast error untuk auto auth yang gagal
-      // User bisa manual connect jika diperlukan
+      console.log("Auto auth error:", errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -163,27 +145,17 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   useEffect(() => {
     const initializeAuth = async () => {
       setIsLoading(true);
-      const storedToken = localStorage.getItem('cigar_ds_token');
-      const storedUserJson = localStorage.getItem('cigar_ds_user');
-
-      if (storedToken) {
-        setToken(storedToken);
-        apiClient.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`;
-        
-        if (storedUserJson) {
-            try {
-                const parsedUser: UserPublic = JSON.parse(storedUserJson);
-                setUser(parsedUser);
-                setIsAuthenticated(true); 
-            } catch (e) { console.error("Failed to parse cached user", e); }
-        }
-        await fetchUserProfile(storedToken);
-      } else {
-        setToken(null);
+      
+      // Coba fetch user profile untuk cek apakah sudah authenticated via cookie
+      try {
+        await fetchUserProfile();
+      } catch (error) {
+        // Jika gagal, user belum authenticated
+        console.log("No valid authentication found");
         setUser(null);
         setIsAuthenticated(false);
-        delete apiClient.defaults.headers.common['Authorization'];
       }
+      
       setIsLoading(false);
     };
 
@@ -195,45 +167,55 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   useEffect(() => {
     if (!isConnected) {
       // Wallet disconnected - clear everything
-      if (isAuthenticated || user || token) {
-        console.log("Wallet disconnected - clearing auth storage");
-        setToken(null);
+      if (isAuthenticated || user) {
+        console.log("Wallet disconnected - clearing auth state");
         setUser(null);
         setIsAuthenticated(false);
         setHasTriedAutoAuth(false);
         clearAuthStorage();
-        delete apiClient.defaults.headers.common['Authorization'];
       }
     } else if (isConnected && !isAuthenticated && !hasTriedAutoAuth) {
       // Wallet connected but not authenticated - try auto auth
       performAutoAuth();
     }
-  }, [isConnected, isAuthenticated, hasTriedAutoAuth, user, token]);
+  }, [isConnected, isAuthenticated, hasTriedAutoAuth, user]);
 
-  const logout = () => {
+  const logout = async () => {
     setIsLoading(true);
-    setToken(null);
+    try {
+      // Call logout endpoint to clear server-side cookie
+      const response = await logoutUser();
+      console.log("Logout successful:", response.message);
+      toast.success(response.message || "You have been logged out");
+    } catch (error: any) {
+      console.error("Error during logout:", error);
+      // Still proceed with client-side cleanup even if server logout fails
+      const errorMessage = error.response?.data?.detail || "Logout failed, but clearing local session";
+      toast.error(errorMessage);
+    }
+    
+    // Clear client-side state
     setUser(null);
     setIsAuthenticated(false);
     setHasTriedAutoAuth(false);
     clearAuthStorage();
-    delete apiClient.defaults.headers.common['Authorization'];
     
     // Disconnect wallet as well
     disconnect();
     
-    toast.success("You have been logged out");
     setIsLoading(false);
   };
 
   const initiateTwitterConnect = async () => {
-    if (!isAuthenticated || !token) {
+    if (!isAuthenticated) {
       toast.error("You must login first");
       return;
     }
+    
     setIsLoading(true); 
     const toastId = "twitter-connect-initiate";
     toast.loading("Mempersiapkan koneksi ke X...", { id: toastId });
+    
     try {
       const response = await getTwitterOAuthUrl();
       const { redirect_url } = response;
@@ -261,7 +243,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     <AuthContext.Provider value={{ 
       isAuthenticated, 
       user, 
-      token, 
       isLoading, 
       isFetchingProfile, 
       logout, 

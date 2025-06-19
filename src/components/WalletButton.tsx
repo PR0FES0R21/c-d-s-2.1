@@ -1,6 +1,6 @@
 // ===========================================================================
-// File: src/components/WalletButton.tsx (MODIFIKASI - Auto Sign-in tanpa tombol)
-// Deskripsi: Mengintegrasikan WalletButton dengan RainbowKit dan AuthContext dengan auto sign-in.
+// File: src/components/WalletButton.tsx (UPDATED - Cookie-based Authentication)
+// Deskripsi: Mengintegrasikan WalletButton dengan RainbowKit dan AuthContext dengan cookie-based auth.
 // ===========================================================================
 import React from 'react';
 import { ConnectButton } from '@rainbow-me/rainbowkit';

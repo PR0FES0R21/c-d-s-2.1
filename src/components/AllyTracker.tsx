@@ -130,7 +130,7 @@ const AllyTracker: React.FC = () => {
               <div className="max-h-[200px] overflow-y-auto hide-scrollbar space-y-2 flex-1">
                 {alliesData.allies.map((ally) => (
                   <div 
-                    key={ally.id}
+                    key={ally._id}
                     className="bg-gray-800/30 rounded-lg p-3 border border-purple-900/30 flex items-center justify-between group hover:bg-gray-800/50 transition-all duration-300"
                   >
                     <div className="flex items-center gap-3">
