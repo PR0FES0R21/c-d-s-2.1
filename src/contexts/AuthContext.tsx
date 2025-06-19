@@ -9,7 +9,7 @@ import {
   getChallengeMessage, 
   connectWallet, 
   logoutUser, 
-  getTwitterOAuthUrl 
+  getTwitterOAuthUrl,
 } from '../services/apiService';
 import { UserPublic } from '../types/user';
 import { AuthSuccessResponse } from '../types/auth';
