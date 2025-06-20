@@ -1,11 +1,15 @@
 // ===========================================================================
-// File: src/types/auth.ts (UPDATED - Cookie-based Auth Response Types)
-// Deskripsi: Definisi tipe untuk response autentikasi berbasis cookie
+// File: src/types/auth.ts (UPDATED - Modular OAuth Response Types)
+// Deskripsi: Definisi tipe untuk response autentikasi berbasis cookie dengan support multi-platform OAuth
 // ===========================================================================
 
-export interface TwitterOAuthInitiateResponse {
+export interface OAuthInitiateResponse {
     redirect_url: string;
+    platform?: string; // Optional untuk backward compatibility
 }
+
+// Legacy type untuk backward compatibility
+export interface TwitterOAuthInitiateResponse extends OAuthInitiateResponse {}
 
 // Response type untuk autentikasi yang berhasil
 export interface AuthSuccessResponse {
@@ -21,4 +25,15 @@ export interface AuthErrorResponse {
 export interface ChallengeResponse {
     messageToSign: string;
     nonce: string;
+}
+
+// OAuth Platform types
+export type OAuthPlatform = 'x' | 'discord' | 'telegram' | 'github';
+
+export interface OAuthPlatformConfig {
+    name: string;
+    displayName: string;
+    icon: string;
+    color: string;
+    endpoint: string;
 }

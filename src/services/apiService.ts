@@ -1,11 +1,11 @@
 // ===========================================================================
-// File: src/services/apiService.ts (UPDATED - Cookie-based Authentication)
-// Deskripsi: Utility untuk melakukan panggilan API ke backend dengan cookie authentication.
+// File: src/services/apiService.ts (UPDATED - Modular OAuth Support)
+// Deskripsi: Utility untuk melakukan panggilan API ke backend dengan cookie authentication dan modular OAuth.
 // ===========================================================================
 import axios from 'axios';
 import { API_BASE_URL } from '../config';
 import { AlliesListResponse, MissionDirective, UserBadge, MissionProgressSummary } from '../types/user';
-import { TwitterOAuthInitiateResponse, AuthSuccessResponse, ChallengeResponse } from '../types/auth';
+import { OAuthInitiateResponse, TwitterOAuthInitiateResponse, AuthSuccessResponse, ChallengeResponse, OAuthPlatform } from '../types/auth';
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -77,6 +77,28 @@ export const logoutUser = async (): Promise<AuthSuccessResponse> => {
   }
 };
 
+// Modular OAuth endpoints
+export const initiateOAuth = async (platform: OAuthPlatform): Promise<OAuthInitiateResponse> => {
+  try {
+    const response = await apiClient.get<OAuthInitiateResponse>(`/auth/${platform}/initiate-oauth`);
+    return response.data;
+  } catch (error) {
+    console.error(`Error initiating ${platform} OAuth:`, error);
+    throw error;
+  }
+};
+
+// Legacy Twitter OAuth endpoint for backward compatibility
+export const getTwitterOAuthUrl = async (): Promise<TwitterOAuthInitiateResponse> => {
+  try {
+    const response = await initiateOAuth('x');
+    return { authorization_url: response.redirect_url };
+  } catch (error) {
+    console.error("Error fetching Twitter OAuth URL:", error);
+    throw error;
+  }
+};
+
 // User endpoints
 export const getCurrentUser = async () => {
   try {
@@ -138,16 +160,6 @@ export const completeMissionDirective = async (missionIdStr: string, completionD
     console.error(`Error completing mission ${missionIdStr}:`, error);
     throw error;
   }
-};
-
-export const getTwitterOAuthUrl = async (): Promise<TwitterOAuthInitiateResponse> => {
-    try {
-        const response = await apiClient.get<TwitterOAuthInitiateResponse>('/auth/x/initiate-oauth');
-        return response.data;
-    } catch (error) {
-        console.error("Error fetching Twitter OAuth URL:", error);
-        throw error;
-    }
 };
 
 export default apiClient;

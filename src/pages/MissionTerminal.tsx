@@ -1,9 +1,9 @@
 // ===========================================================================
-// File: src/pages/MissionTerminal.tsx (ENHANCED - Complete Action Integration with Cooldown)
-// Deskripsi: Menangani semua jenis action.type dari mission data dengan logika cooldown untuk like/retweet
+// File: src/pages/MissionTerminal.tsx (UPDATED - Modular OAuth Support)
+// Deskripsi: Menangani semua jenis action.type dari mission data dengan logika cooldown dan modular OAuth
 // ===========================================================================
 import React, { useState, useEffect } from 'react';
-import { Trophy, Zap, Target, Award, Sparkles, CheckCircle, ExternalLink, Hourglass, XCircle, Loader2, AlertTriangle, Twitter, Filter, Users, Eye, RefreshCw, Clock } from 'lucide-react';
+import { Trophy, Zap, Target, Award, Sparkles, CheckCircle, ExternalLink, Hourglass, XCircle, Loader2, AlertTriangle, Twitter, Filter, Users, Eye, RefreshCw, Clock, MessageSquare } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useMissionCooldown } from '../hooks/useMissionCooldown';
 import { 
@@ -19,6 +19,8 @@ import {
     MissionStatus as MissionStatusType,
     MissionType,
 } from '../types/user';
+import { OAuthPlatform } from '../types/auth';
+import { getOAuthPlatformConfig, getIconComponent, isConnectedToPlatform } from '../utils/oauthPlatforms';
 import toast from 'react-hot-toast';
 import { useLocation, useNavigate } from 'react-router-dom';
 
@@ -33,7 +35,7 @@ interface RedirectVerifyState {
 }
 
 const MissionTerminal: React.FC = () => {
-  const { isAuthenticated, user, isLoading: authLoading, fetchUserProfile, initiateTwitterConnect } = useAuth();
+  const { isAuthenticated, user, isLoading: authLoading, fetchUserProfile, initiateOAuthConnect } = useAuth();
   const { 
     cooldownData, 
     startCooldown, 
@@ -111,33 +113,43 @@ const MissionTerminal: React.FC = () => {
 
   useEffect(() => {
     const urlParams = new URLSearchParams(location.search);
-    const twitterConnectedStatus = urlParams.get('x_connected');
-    const twitterMessage = urlParams.get('message');
-    const twitterError = urlParams.get('error');
+    
+    // Handle multiple OAuth platform callbacks
+    const oauthPlatforms = ['x', 'discord', 'telegram', 'github'];
+    let redirectedFromOAuth = false;
+    let platformName = '';
 
-    let redirectedFromTwitter = false;
-
-    if (twitterConnectedStatus) {
-      redirectedFromTwitter = true;
-      const toastId = "twitter-callback-toast";
-      if (twitterConnectedStatus === 'true' && twitterMessage) {
-        toast.success(decodeURIComponent(twitterMessage), { id: toastId });
-      } else if (twitterError) {
-        toast.error(decodeURIComponent(twitterError), { id: toastId, duration: 5000 });
-      } else if (twitterConnectedStatus === 'false' && twitterMessage) {
-        toast.error(decodeURIComponent(twitterMessage), { id: toastId, duration: 5000 });
+    for (const platform of oauthPlatforms) {
+      const connectedStatus = urlParams.get(`${platform}_connected`);
+      if (connectedStatus) {
+        redirectedFromOAuth = true;
+        platformName = platform;
+        
+        const message = urlParams.get('message');
+        const error = urlParams.get('error');
+        const toastId = `${platform}-callback-toast`;
+        
+        if (connectedStatus === 'true' && message) {
+          toast.success(decodeURIComponent(message), { id: toastId });
+        } else if (error) {
+          toast.error(decodeURIComponent(error), { id: toastId, duration: 5000 });
+        } else if (connectedStatus === 'false' && message) {
+          toast.error(decodeURIComponent(message), { id: toastId, duration: 5000 });
+        }
+        
+        // Clean up URL parameters
+        urlParams.delete(`${platform}_connected`);
+        urlParams.delete('message');
+        urlParams.delete('error');
+        navigate(`${location.pathname}?${urlParams.toString()}`, { replace: true });
+        break;
       }
-      
-      urlParams.delete('x_connected');
-      urlParams.delete('message');
-      urlParams.delete('error');
-      navigate(`${location.pathname}?${urlParams.toString()}`, { replace: true });
     }
     
     if (isAuthenticated && !authLoading) {
-      if(redirectedFromTwitter){
-        console.log("Redirected from Twitter, fetching user profile and mission data...");
-        if(fetchUserProfile) fetchUserProfile(); 
+      if (redirectedFromOAuth) {
+        console.log(`Redirected from ${platformName} OAuth, fetching user profile and mission data...`);
+        if (fetchUserProfile) fetchUserProfile(); 
       }
       fetchData();
     } else if (!isAuthenticated && !authLoading) {
@@ -151,7 +163,6 @@ const MissionTerminal: React.FC = () => {
   const getMissionButtonState = (mission: MissionDirective) => {
     const { action, status, missionId_str, currentProgress, requiredProgress } = mission;
     const userAlliesCount = user?.alliesCount || 0;
-    const isTwitterConnected = !!user?.twitter_data?.twitter_username;
     const redirectState = redirectVerifyStates[mission._id] || 'initial';
     
     // Check cooldown untuk like/retweet missions
@@ -161,31 +172,44 @@ const MissionTerminal: React.FC = () => {
 
     switch (action.type) {
       case 'oauth_connect':
-        if (missionId_str === "connect-x-account") {
-          if (status === 'completed') {
-            return {
-              label: 'Connected',
-              icon: CheckCircle,
-              disabled: true,
-              variant: 'completed'
-            };
-          }
-          if (isTwitterConnected && status !== 'completed') {
-            return {
-              label: 'Verify Connection',
-              icon: RefreshCw,
-              disabled: false,
-              variant: 'verify'
-            };
-          }
+        const platform = action.platform;
+        if (!platform) {
           return {
-            label: action.label,
-            icon: Twitter,
-            disabled: false,
-            variant: 'action'
+            label: 'Invalid Platform',
+            icon: XCircle,
+            disabled: true,
+            variant: 'disabled'
           };
         }
-        break;
+
+        const platformConfig = getOAuthPlatformConfig(platform);
+        const IconComponent = platformConfig ? getIconComponent(platformConfig.icon) : Twitter;
+        const isConnected = isConnectedToPlatform(user, platform);
+        
+        if (status === 'completed') {
+          return {
+            label: 'Connected',
+            icon: CheckCircle,
+            disabled: true,
+            variant: 'completed'
+          };
+        }
+        
+        if (isConnected && status !== 'completed') {
+          return {
+            label: 'Verify Connection',
+            icon: RefreshCw,
+            disabled: false,
+            variant: 'verify'
+          };
+        }
+        
+        return {
+          label: action.label,
+          icon: IconComponent,
+          disabled: false,
+          variant: 'action'
+        };
 
       case 'claim_if_eligible':
         const currentProg = currentProgress || 0;
@@ -298,33 +322,44 @@ const MissionTerminal: React.FC = () => {
     const missionType = getMissionType(missionId_str);
 
     if (action.type === "oauth_connect") {
-      if (missionId_str === "connect-x-account") {
-        const isTwitterConnected = !!user?.twitter_data?.twitter_username;
-        
-        if (isTwitterConnected && mission.status !== 'completed') {
-          // User has connected Twitter but mission not marked as completed - verify
-          setCompletingMissionId(mission._id);
-          const toastId = `mission-${mission._id}`;
-          try {
-            toast.loading(`Verifying X connection...`, { id: toastId });
-            const result = await completeMissionDirective(missionId_str);
-            toast.success(result.message || `X connection verified successfully!`, { id: toastId });
-            
-            await fetchData();
-            if(fetchUserProfile) await fetchUserProfile();
-          } catch (error: any) {
-            const errorMsg = error.response?.data?.detail || `Failed to verify X connection`;
-            toast.error(errorMsg, { id: toastId });
-            console.error(`Error verifying X connection:`, error);
-          } finally {
-            setCompletingMissionId(null);
-          }
-        } else if (!isTwitterConnected) {
-          // Initiate Twitter OAuth
-          await initiateTwitterConnect();
-        } else {
-          toast.success("X account already connected!", {id: `mission-${mission._id}`});
+      const platform = action.platform as OAuthPlatform;
+      if (!platform) {
+        toast.error("Invalid OAuth platform specified");
+        return;
+      }
+
+      const isConnected = isConnectedToPlatform(user, platform);
+      
+      if (isConnected && mission.status !== 'completed') {
+        // User has connected platform but mission not marked as completed - verify
+        setCompletingMissionId(mission._id);
+        const toastId = `mission-${mission._id}`;
+        try {
+          const platformConfig = getOAuthPlatformConfig(platform);
+          const platformName = platformConfig?.displayName || platform.toUpperCase();
+          
+          toast.loading(`Verifying ${platformName} connection...`, { id: toastId });
+          const result = await completeMissionDirective(missionId_str);
+          toast.success(result.message || `${platformName} connection verified successfully!`, { id: toastId });
+          
+          await fetchData();
+          if(fetchUserProfile) await fetchUserProfile();
+        } catch (error: any) {
+          const platformConfig = getOAuthPlatformConfig(platform);
+          const platformName = platformConfig?.displayName || platform.toUpperCase();
+          const errorMsg = error.response?.data?.detail || `Failed to verify ${platformName} connection`;
+          toast.error(errorMsg, { id: toastId });
+          console.error(`Error verifying ${platform} connection:`, error);
+        } finally {
+          setCompletingMissionId(null);
         }
+      } else if (!isConnected) {
+        // Initiate OAuth for the specified platform
+        await initiateOAuthConnect(platform);
+      } else {
+        const platformConfig = getOAuthPlatformConfig(platform);
+        const platformName = platformConfig?.displayName || platform.toUpperCase();
+        toast.success(`${platformName} account already connected!`, {id: `mission-${mission._id}`});
       }
     } 
     else if (action.type === "claim_if_eligible") {

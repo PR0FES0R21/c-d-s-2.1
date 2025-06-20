@@ -1,6 +1,6 @@
 // ===========================================================================
-// File: src/contexts/AuthContext.tsx (UPDATED - Cookie-based Authentication)
-// Deskripsi: React Context untuk manajemen state autentikasi dengan cookie-based auth.
+// File: src/contexts/AuthContext.tsx (UPDATED - Modular OAuth Support)
+// Deskripsi: React Context untuk manajemen state autentikasi dengan cookie-based auth dan modular OAuth.
 // ===========================================================================
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useAccount, useSignMessage, useDisconnect } from 'wagmi';
@@ -9,10 +9,10 @@ import {
   getChallengeMessage, 
   connectWallet, 
   logoutUser, 
-  getTwitterOAuthUrl,
+  initiateOAuth,
 } from '../services/apiService';
 import { UserPublic } from '../types/user';
-import { AuthSuccessResponse } from '../types/auth';
+import { AuthSuccessResponse, OAuthPlatform } from '../types/auth';
 import toast from 'react-hot-toast';
 
 interface AuthContextType {
@@ -22,6 +22,8 @@ interface AuthContextType {
   isFetchingProfile: boolean;
   logout: () => void;
   fetchUserProfile: () => Promise<void>;
+  initiateOAuthConnect: (platform: OAuthPlatform) => Promise<void>;
+  // Legacy method for backward compatibility
   initiateTwitterConnect: () => Promise<void>;
 }
 
@@ -206,30 +208,31 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setIsLoading(false);
   };
 
-  const initiateTwitterConnect = async () => {
+  // Modular OAuth initiation
+  const initiateOAuthConnect = async (platform: OAuthPlatform) => {
     if (!isAuthenticated) {
       toast.error("You must login first");
       return;
     }
     
     setIsLoading(true); 
-    const toastId = "twitter-connect-initiate";
-    toast.loading("Mempersiapkan koneksi ke X...", { id: toastId });
+    const toastId = `${platform}-connect-initiate`;
+    toast.loading(`Preparing ${platform.toUpperCase()} connection...`, { id: toastId });
     
     try {
-      const response = await getTwitterOAuthUrl();
+      const response = await initiateOAuth(platform);
       const { redirect_url } = response;
 
       if (redirect_url) {
-        toast.success("Mengarahkan ke halaman otorisasi X...", { id: toastId });
+        toast.success(`Redirecting to ${platform.toUpperCase()} authorization...`, { id: toastId });
         window.location.href = redirect_url;
       } else {
-        toast.error("Gagal mendapatkan URL otorisasi X dari server.", { id: toastId });
+        toast.error(`Failed to get ${platform.toUpperCase()} authorization URL from server.`, { id: toastId });
         setIsLoading(false);
       }
     } catch (error: any) {
-      console.error("Error initiating Twitter connect:", error);
-      const errorMessage = error.response?.data?.detail || error.message || "Gagal memulai koneksi X.";
+      console.error(`Error initiating ${platform} connect:`, error);
+      const errorMessage = error.response?.data?.detail || error.message || `Failed to initiate ${platform.toUpperCase()} connection.`;
       let displayErrorMessage = errorMessage;
       if (Array.isArray(errorMessage)) {
         displayErrorMessage = errorMessage.map((err: any) => `${err.loc?.join('->') || 'error'}: ${err.msg}`).join('; ');
@@ -237,6 +240,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       toast.error(displayErrorMessage, { id: toastId });
       setIsLoading(false);
     }
+  };
+
+  // Legacy Twitter connect method for backward compatibility
+  const initiateTwitterConnect = async () => {
+    await initiateOAuthConnect('x');
   };
 
   return (
@@ -247,6 +255,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       isFetchingProfile, 
       logout, 
       fetchUserProfile, 
+      initiateOAuthConnect,
       initiateTwitterConnect 
     }}>
       {children}
